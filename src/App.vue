@@ -1,6 +1,6 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { getWorks, addWork } from './lib/data.js'
+import { ref, computed, onMounted } from 'vue'
+import { getWorks, addWork, updateWork, deleteWork } from './lib/data.js'
 import { cloudbaseEnabled } from './lib/cloudbase.js'
 
 const tab = ref('browse') // 'browse' | 'submit' | 'batch'
@@ -53,6 +53,88 @@ function hasMulti(w) {
 function mainLink(w) {
   return workLinks(w)[0] || '#'
 }
+
+// ---------- 管理后台（前端口令保护） ----------
+// 后端 RLS 已放行匿名改删，这里的前端口令只挡普通访客误删，非安全边界。
+const ADMIN_KEY = 'kh_admin_pwd'
+const ADMIN_SET = 'kh_admin_pwd_set'
+const adminMode = ref(false)
+const showPwd = ref(false)
+const pwdInput = ref('')
+const editingId = ref(null)
+const editForm = ref({})
+const hasPwd = computed(() => !!localStorage.getItem(ADMIN_SET))
+
+function enterAdmin() {
+  const saved = localStorage.getItem(ADMIN_KEY)
+  if (!localStorage.getItem(ADMIN_SET)) {
+    if (!pwdInput.value.trim()) return
+    localStorage.setItem(ADMIN_KEY, pwdInput.value.trim())
+    localStorage.setItem(ADMIN_SET, '1')
+  } else if (pwdInput.value.trim() !== saved) {
+    alert('口令错误')
+    pwdInput.value = ''
+    return
+  }
+  adminMode.value = true
+  showPwd.value = false
+  pwdInput.value = ''
+}
+
+function exitAdmin() {
+  adminMode.value = false
+  editingId.value = null
+}
+
+function startEdit(w) {
+  editingId.value = w.id
+  editForm.value = {
+    title: w.title,
+    author: w.author || '',
+    original_url: w.original_url || (w.links && w.links[0]) || '',
+    category: w.category || '',
+    tags: (w.tags || []).join(' '),
+    summary: w.summary || ''
+  }
+}
+
+async function saveEdit() {
+  const id = editingId.value
+  try {
+    await updateWork(id, {
+      title: editForm.value.title,
+      author: editForm.value.author,
+      original_url: editForm.value.original_url,
+      category: editForm.value.category,
+      tags: editForm.value.tags
+        .split(/[,，\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+      summary: editForm.value.summary
+    })
+    editingId.value = null
+    await loadFilters()
+    await load()
+  } catch (e) {
+    alert('保存失败：' + e.message)
+  }
+}
+
+function cancelEdit() {
+  editingId.value = null
+}
+
+async function removeWork(w) {
+  if (!confirm(`确定删除《${w.title}》？此操作不可恢复`)) return
+  try {
+    await deleteWork(w.id)
+    await loadFilters()
+    await load()
+  } catch (e) {
+    alert('删除失败：' + e.message)
+  }
+}
+
 
 // ---------- 单条投稿 ----------
 const form = ref({
@@ -288,6 +370,13 @@ onMounted(async () => {
       <button :class="{ active: tab === 'browse' }" @click="tab = 'browse'">浏览</button>
       <button :class="{ active: tab === 'submit' }" @click="tab = 'submit'">投稿</button>
       <button :class="{ active: tab === 'batch' }" @click="tab = 'batch'">批量导入</button>
+      <button class="lock-btn" type="button" @click="adminMode ? exitAdmin() : (showPwd = !showPwd)">
+        {{ adminMode ? '退出管理' : '🔒' }}
+      </button>
+    </div>
+    <div v-if="showPwd" class="pwd-bar">
+      <input v-model="pwdInput" :placeholder="hasPwd ? '输入管理口令' : '设置管理口令'" @keyup.enter="enterAdmin" />
+      <button class="submit-btn small" type="button" @click="enterAdmin">确认</button>
     </div>
   </header>
 
@@ -315,25 +404,45 @@ onMounted(async () => {
 
     <div class="grid">
       <div v-for="w in works" :key="w.id" class="card">
-        <div class="c-title">{{ w.title }}</div>
-        <div class="c-meta">{{ w.author || '佚名' }} · {{ w.category || '未分类' }}</div>
-        <div v-if="w.summary" class="c-sum">{{ w.summary }}</div>
-        <div class="c-tags"><span v-for="t in (w.tags || [])" :key="t">#{{ t }}</span></div>
-        <div class="card-actions">
-          <template v-if="hasMulti(w)">
-            <button class="link-btn ghost" type="button" @click="toggleExpand(w.id)">
-              {{ expanded[w.id] ? '收起' : `展开 ${workLinks(w).length} 章` }}
-            </button>
-            <transition name="chapters-expand">
-              <ol v-if="expanded[w.id]" class="chapters">
-                <li v-for="(l, i) in workLinks(w)" :key="i">
-                  <a :href="l" target="_blank" rel="noopener">第 {{ i + 1 }} 章 ↗</a>
-                </li>
-              </ol>
-            </transition>
-          </template>
-          <a v-else class="link-btn" :href="mainLink(w)" target="_blank" rel="noopener">打开链接 ↗</a>
-        </div>
+        <template v-if="adminMode && editingId === w.id">
+          <div class="edit-form">
+            <input v-model="editForm.title" placeholder="标题" />
+            <input v-model="editForm.author" placeholder="作者" />
+            <input v-model="editForm.original_url" placeholder="原链接" />
+            <input v-model="editForm.category" placeholder="分类" />
+            <input v-model="editForm.tags" placeholder="标签（空格分隔）" />
+            <textarea v-model="editForm.summary" placeholder="简介"></textarea>
+            <div class="edit-actions">
+              <button class="submit-btn small primary" type="button" @click="saveEdit">保存</button>
+              <button class="submit-btn small ghost" type="button" @click="cancelEdit">取消</button>
+            </div>
+          </div>
+        </template>
+        <template v-else>
+          <div class="c-title">{{ w.title }}</div>
+          <div class="c-meta">{{ w.author || '佚名' }} · {{ w.category || '未分类' }}</div>
+          <div v-if="w.summary" class="c-sum">{{ w.summary }}</div>
+          <div class="c-tags"><span v-for="t in (w.tags || [])" :key="t">#{{ t }}</span></div>
+          <div class="card-actions">
+            <template v-if="hasMulti(w)">
+              <button class="link-btn ghost" type="button" @click="toggleExpand(w.id)">
+                {{ expanded[w.id] ? '收起' : `展开 ${workLinks(w).length} 章` }}
+              </button>
+              <transition name="chapters-expand">
+                <ol v-if="expanded[w.id]" class="chapters">
+                  <li v-for="(l, i) in workLinks(w)" :key="i">
+                    <a :href="l" target="_blank" rel="noopener">第 {{ i + 1 }} 章 ↗</a>
+                  </li>
+                </ol>
+              </transition>
+            </template>
+            <a v-else class="link-btn" :href="mainLink(w)" target="_blank" rel="noopener">打开链接 ↗</a>
+          </div>
+          <div v-if="adminMode" class="admin-actions">
+            <button class="link-btn ghost" type="button" @click="startEdit(w)">编辑</button>
+            <button class="link-btn danger" type="button" @click="removeWork(w)">删除</button>
+          </div>
+        </template>
       </div>
     </div>
     <div v-if="!works.length" class="empty">

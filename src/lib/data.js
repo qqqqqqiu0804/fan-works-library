@@ -140,3 +140,27 @@ export async function addWork(work) {
   }
   localAdd(w)
 }
+
+// 更新作品（管理后台用）：patch 为要改的字段
+export async function updateWork(id, patch) {
+  if (cloudbaseEnabled && db) {
+    await ensureAuth()
+    const { error } = await db.from(TABLE).update(patch).eq('id', id)
+    if (error) throw error
+    return
+  }
+  const list = localGet().map((w) => (w.id === id ? { ...w, ...patch } : w))
+  localStorage.setItem(STORE_KEY, JSON.stringify(list))
+}
+
+// 删除作品（管理后台用）：硬删
+export async function deleteWork(id) {
+  if (cloudbaseEnabled && db) {
+    await ensureAuth()
+    const { error } = await db.from(TABLE).delete().eq('id', id)
+    if (error) throw error
+    return
+  }
+  const list = localGet().filter((w) => w.id !== id)
+  localStorage.setItem(STORE_KEY, JSON.stringify(list))
+}

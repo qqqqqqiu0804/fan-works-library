@@ -139,3 +139,16 @@ form textarea { min-height: 70px; resize: vertical; }
 .pi-links a:hover { color: var(--accent); }
 .pi-warn { color: #C0392B; font-size: 11px; font-weight: 500; margin-left: 6px; }
 .pi-warn:not(:first-child) { display: block; margin-top: 4px; }
+
+/* 管理后台 */
+.tabs .lock-btn { margin-left: auto; font-size: 16px; padding: 4px 8px 12px; color: var(--text-sub); }
+.pwd-bar { display: flex; gap: 8px; padding: 8px 0 12px; }
+.pwd-bar input { flex: 1; }
+.admin-actions { display: flex; gap: 10px; margin-top: 8px; }
+.link-btn.danger { color: #C0392B; }
+.link-btn.danger:hover { color: #A93226; }
+.edit-form { display: flex; flex-direction: column; gap: 8px; }
+.edit-form input, .edit-form textarea { font-size: 13px; padding: 9px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: #FFFDFB; }
+.edit-form textarea { min-height: 56px; resize: vertical; }
+.edit-actions { display: flex; gap: 8px; margin-top: 2px; }
+.edit-actions .submit-btn.small { flex: 1; }
