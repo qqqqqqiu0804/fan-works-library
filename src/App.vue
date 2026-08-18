@@ -29,6 +29,7 @@ async function load() {
     category: category.value,
     tag: tag.value
   })
+  resetPage()
 }
 
 function pickTag(t) {
@@ -255,6 +256,24 @@ const displayWorks = computed(() => {
   if (!showFavOnly.value) return works.value
   return works.value.filter((w) => favorites.value.has(w.id))
 })
+
+// 加载更多（分页）：每次多展示一屏
+const PAGE_SIZE = 9
+const page = ref(1)
+const visibleWorks = computed(() => displayWorks.value.slice(0, page.value * PAGE_SIZE))
+function loadMore() { page.value++ }
+function goGrid() {
+  page.value = 1
+  document.getElementById('grid-top')?.scrollIntoView({ behavior: 'smooth' })
+}
+function resetPage() { page.value = 1 }
+
+// 顶部滚动进度条
+const scrollProgress = ref(0)
+function onScroll() {
+  const h = document.documentElement.scrollHeight - window.innerHeight
+  scrollProgress.value = h > 0 ? Math.min(1, window.scrollY / h) : 0
+}
 
 // ---------- 作品编辑 / 删除（受 canEdit 控制） ----------
 const editingId = ref(null)
@@ -565,28 +584,34 @@ onMounted(async () => {
   if (a) {
     onAuthChange((u) => loadUserRole(u))
   }
+  window.addEventListener('scroll', onScroll, { passive: true })
+  onScroll()
   await loadFilters()
   await load()
 })
 </script>
 
 <template>
+  <div class="progress-bar" :style="{ transform: `scaleX(${scrollProgress})` }"></div>
   <header>
-    <div class="title">
-      <span class="logo">
-        <svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 2h6a2 2 0 0 1 2 2v8a2 2 0 0 0-2-2H3z" fill="none" stroke="#fff" stroke-width="1.2"/><path d="M3 2v8" stroke="#fff" stroke-width="1.2"/></svg>
-      </span>
-      kh-library
-    </div>
-    <div class="tabs">
-      <button :class="{ active: tab === 'browse' }" @click="tab = 'browse'">浏览</button>
-      <button :class="{ active: tab === 'submit' }" @click="tab = 'submit'">投稿</button>
-      <button :class="{ active: tab === 'batch' }" @click="tab = 'batch'">批量导入</button>
-      <button v-if="!isLoggedIn" class="login-btn" type="button" @click="showAuth = true">登录</button>
-      <div v-else class="user-box">
-        <span class="user-email">{{ user.email }}</span>
-        <span class="role-badge" :class="user.role">{{ user.role === 'admin' ? '管理员' : '用户' }}</span>
-        <button class="login-btn ghost" type="button" @click="doLogout">退出</button>
+    <div class="nav-inner">
+      <div class="title">
+        <span class="logo">
+          <svg width="16" height="16" viewBox="0 0 14 14"><path d="M3 2h6a2 2 0 0 1 2 2v8a2 2 0 0 0-2-2H3z" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M3 2v8" stroke="#fff" stroke-width="1.4"/></svg>
+        </span>
+        kh-library
+      </div>
+      <button class="add-pill" type="button" @click="tab = 'submit'">＋ 添加作品</button>
+      <div class="tabs">
+        <button :class="{ active: tab === 'browse' }" @click="tab = 'browse'">首页</button>
+        <button :class="{ active: tab === 'submit' }" @click="tab = 'submit'">投稿</button>
+        <button :class="{ active: tab === 'batch' }" @click="tab = 'batch'">批量导入</button>
+        <button v-if="!isLoggedIn" class="login-btn" type="button" @click="showAuth = true">登录</button>
+        <div v-else class="user-box">
+          <span class="user-email">{{ user.email }}</span>
+          <span class="role-badge" :class="user.role">{{ user.role === 'admin' ? '管理员' : '用户' }}</span>
+          <button class="login-btn ghost" type="button" @click="doLogout">退出</button>
+        </div>
       </div>
     </div>
   </header>
@@ -596,6 +621,13 @@ onMounted(async () => {
     <p v-if="!cloudbaseEnabled" class="hint">
       当前为本地演示模式（数据存你浏览器）。配置 VITE_CLOUDBASE_ENV_ID 即可切换云端、数据统一。
     </p>
+
+    <div class="hero">
+      <h1>把喜欢的文，都收进这座小图书馆</h1>
+      <p class="hero-sub">从微博、LOFTER 到各处——这里是你一个人的图书馆。</p>
+      <button class="hero-cta" type="button" @click="goGrid">随便逛逛 ↓</button>
+    </div>
+
     <div class="bar">
       <input v-model="search" placeholder="搜标题 / 作者 / 简介" @keyup.enter="load" />
       <select v-model="category" @change="load">
@@ -604,69 +636,101 @@ onMounted(async () => {
       </select>
       <button v-if="isLoggedIn" class="fav-toggle" :class="{ active: showFavOnly }" type="button" @click="showFavOnly = !showFavOnly">★ 我的收藏</button>
     </div>
-    <div class="chips">
-      <span
-        v-for="t in tags"
-        :key="t"
-        class="chip"
-        :class="{ active: tag === t }"
-        @click="pickTag(t)"
-      >#{{ t }}</span>
+
+    <div class="filterbar">
+      <div class="chips">
+        <button class="fchip" :class="{ active: !tag }" type="button" @click="tag=''; load()">全部</button>
+        <button
+          v-for="t in tags"
+          :key="t"
+          class="fchip"
+          :class="{ active: tag === t }"
+          type="button"
+          @click="pickTag(t)"
+        >#{{ t }}</button>
+      </div>
+      <div class="sort">最新 ↓</div>
+    </div>
+
+    <div id="grid-top" class="section-head">
+      <h2>全部作品</h2>
+      <span class="count">共 {{ displayWorks.length }} 篇 · 已收藏 {{ favorites.size }} 篇</span>
     </div>
 
     <div class="grid">
-      <div v-for="w in displayWorks" :key="w.id" class="card">
+      <div v-for="w in visibleWorks" :key="w.id" class="card">
+        <div class="c-cover">
+          <img v-if="w.cover_url" :src="w.cover_url" :alt="w.title" loading="lazy" />
+          <span v-else class="c-cover-ph">{{ (w.title || '?').charAt(0) }}</span>
+        </div>
         <template v-if="editingId === w.id">
-          <div class="edit-form">
-            <input v-model="editForm.title" placeholder="标题" />
-            <input v-model="editForm.author" placeholder="作者" />
-            <input v-model="editForm.original_url" placeholder="原链接" />
-            <input v-model="editForm.category" placeholder="分类" />
-            <input v-model="editForm.tags" placeholder="标签（空格分隔）" />
-            <textarea v-model="editForm.summary" placeholder="简介"></textarea>
-            <div class="edit-actions">
-              <button class="submit-btn small primary" type="button" @click="saveEdit">保存</button>
-              <button class="submit-btn small ghost" type="button" @click="cancelEdit">取消</button>
+          <div class="c-body">
+            <div class="edit-form">
+              <input v-model="editForm.title" placeholder="标题" />
+              <input v-model="editForm.author" placeholder="作者" />
+              <input v-model="editForm.original_url" placeholder="原链接" />
+              <input v-model="editForm.category" placeholder="分类" />
+              <input v-model="editForm.tags" placeholder="标签（空格分隔）" />
+              <textarea v-model="editForm.summary" placeholder="简介"></textarea>
+              <div class="edit-actions">
+                <button class="submit-btn small primary" type="button" @click="saveEdit">保存</button>
+                <button class="submit-btn small ghost" type="button" @click="cancelEdit">取消</button>
+              </div>
             </div>
           </div>
         </template>
         <template v-else>
           <button class="fav-btn" :class="{ active: favorites.has(w.id) }" type="button" :title="favorites.has(w.id) ? '取消收藏' : '收藏'" @click="toggleFav(w)">★</button>
-          <div class="c-title">{{ w.title }}</div>
-          <span v-if="detectPlatform(w.original_url).platform !== 'other'" class="badge plat">{{ detectPlatform(w.original_url).label }}</span>
-          <div class="c-meta">{{ w.author || '佚名' }} · {{ w.category || '未分类' }}</div>
-          <div v-if="w.summary" class="c-sum">{{ w.summary }}</div>
-          <div class="c-tags"><span v-for="t in (w.tags || [])" :key="t">#{{ t }}</span></div>
-          <div class="card-actions">
-            <template v-if="hasMulti(w)">
-              <button class="link-btn ghost" type="button" @click="toggleExpand(w.id)">
-                {{ expanded[w.id] ? '收起' : `展开 ${workLinks(w).length} 章` }}
-              </button>
-              <transition name="chapters-expand">
-                <ol v-if="expanded[w.id]" class="chapters">
-                  <li v-for="(l, i) in workLinks(w)" :key="i">
-                    <a :href="l" target="_blank" rel="noopener">第 {{ i + 1 }} 章 ↗</a>
-                  </li>
-                </ol>
-              </transition>
-            </template>
-            <a v-else class="link-btn" :href="mainLink(w)" target="_blank" rel="noopener">打开链接 ↗</a>
-          </div>
-          <div v-if="canEdit(w)" class="admin-actions">
-            <button class="link-btn ghost" type="button" @click="startEdit(w)">编辑</button>
-            <button class="link-btn danger" type="button" @click="removeWork(w)">删除</button>
+          <div class="c-body">
+            <div class="c-title">{{ w.title }}</div>
+            <span v-if="detectPlatform(w.original_url).platform !== 'other'" class="badge plat">{{ detectPlatform(w.original_url).label }}</span>
+            <div class="c-meta">{{ w.author || '佚名' }} · {{ w.category || '未分类' }}</div>
+            <div v-if="w.summary" class="c-sum">{{ w.summary }}</div>
+            <div class="c-tags"><span v-for="t in (w.tags || [])" :key="t">#{{ t }}</span></div>
+            <div class="card-actions">
+              <template v-if="hasMulti(w)">
+                <button class="link-btn ghost" type="button" @click="toggleExpand(w.id)">
+                  {{ expanded[w.id] ? '收起' : `展开 ${workLinks(w).length} 章` }}
+                </button>
+                <transition name="chapters-expand">
+                  <ol v-if="expanded[w.id]" class="chapters">
+                    <li v-for="(l, i) in workLinks(w)" :key="i">
+                      <a :href="l" target="_blank" rel="noopener">第 {{ i + 1 }} 章 ↗</a>
+                    </li>
+                  </ol>
+                </transition>
+              </template>
+              <a v-else class="link-btn" :href="mainLink(w)" target="_blank" rel="noopener">打开链接 ↗</a>
+            </div>
+            <div v-if="canEdit(w)" class="admin-actions">
+              <button class="link-btn ghost" type="button" @click="startEdit(w)">编辑</button>
+              <button class="link-btn danger" type="button" @click="removeWork(w)">删除</button>
+            </div>
           </div>
         </template>
       </div>
     </div>
-    <div v-if="!works.length" class="empty">
-      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="#D8D0C7" stroke-width="1.5">
+
+    <button v-if="visibleWorks.length < displayWorks.length" class="loadmore" type="button" @click="loadMore">加载更多 ↓</button>
+
+    <div v-if="!displayWorks.length" class="empty">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="#D8C7E8" stroke-width="1.5">
         <rect x="10" y="8" width="28" height="32" rx="3" />
         <path d="M16 16h16M16 22h16M16 28h10" />
       </svg>
       <p>还没有作品</p>
       <span>去「投稿」或「批量导入」加几条吧</span>
     </div>
+
+    <footer class="site-footer">
+      <div class="f-brand">同人作品图书馆</div>
+      <div>用 ♥ 收藏你喜欢的每一篇 · Powered by kh-library</div>
+      <div>
+        <a href="#" @click.prevent="tab = 'submit'">投稿</a>
+        <a href="#" @click.prevent="showAuth = true">反馈</a>
+        <a href="#" @click.prevent="tab = 'batch'">批量</a>
+      </div>
+    </footer>
   </section>
 
   <!-- ============ 单条投稿 ============ -->
@@ -826,4 +890,20 @@ onMounted(async () => {
       <p class="auth-hint">注册即设置密码，之后可用「邮箱 + 密码」直接登录；已注册但没设过密码的账号，点登录页「忘记密码？」用邮箱验证码补设。</p>
     </div>
   </div>
+
+  <!-- ============ 移动端底部导航 ============ -->
+  <nav class="mobile-nav">
+    <button :class="{ active: tab === 'browse' }" type="button" @click="tab = 'browse'">
+      <span class="mi">🏠</span>首页
+    </button>
+    <button :class="{ active: tab === 'submit' }" type="button" @click="tab = 'submit'">
+      <span class="mi">➕</span>投稿
+    </button>
+    <button :class="{ active: showFavOnly }" type="button" @click="isLoggedIn ? (showFavOnly = !showFavOnly) : (showAuth = true)">
+      <span class="mi">⭐</span>收藏
+    </button>
+    <button :class="{ active: isLoggedIn }" type="button" @click="isLoggedIn ? null : (showAuth = true)">
+      <span class="mi">👤</span>我的
+    </button>
+  </nav>
 </template>
