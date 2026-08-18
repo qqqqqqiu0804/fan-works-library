@@ -979,7 +979,7 @@ onMounted(async () => {
     </div>
 
     <footer class="site-footer">
-      <div class="f-brand">同人作品图书馆</div>
+      <div class="f-brand">kh-library</div>
       <div>用 ♥ 收藏你喜欢的每一篇 · Powered by kh-library</div>
       <div>
         <a href="#" @click.prevent="tab = 'submit'">投稿</a>

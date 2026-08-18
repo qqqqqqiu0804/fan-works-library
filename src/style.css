@@ -336,6 +336,10 @@ form textarea { min-height: 72px; resize: vertical; }
   .hero h1 { font-size: 30px; }
   .grid { grid-template-columns: 1fr; gap: 12px; }
   .tabs { display: none; }
+  /* 移动端隐藏左上角品牌文字，让出空间给完整导航（元素保留，仅 CSS 隐藏） */
+  .title { display: none; }
+  .nav-inner { flex-wrap: wrap; gap: 8px; }
+  header { padding: 10px 0 0; }
   .add-pill { margin-left: auto; padding: 8px 14px; font-size: 13px; }
   .mobile-nav {
     display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
@@ -361,6 +365,10 @@ form textarea { min-height: 72px; resize: vertical; }
   .read-layout { flex-direction: column; gap: 0; }
   .read-toc { display: none; }
   .card-preview { display: none; }
+  /* 禁止横向溢出 + 正文行高舒适化（配合 ≤640px 的字号/留白） */
+  html, body { overflow-x: hidden; max-width: 100%; }
+  .read-content { line-height: 1.8; max-width: 100%; }
+  .read-para { font-size: 17px; line-height: 1.8; }
 }
 
 /* ===== 站内阅读页 ===== */
@@ -502,7 +510,7 @@ form textarea { min-height: 72px; resize: vertical; }
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
 
-/* 移动端：阅读页隐藏底部全局导航、字号收敛 */
+/* 移动端：阅读页隐藏底部全局导航、字号收敛、舒适阅读 */
 @media (max-width: 640px) {
   .read-view { max-width: 100%; }
   .read-bigtitle { font-size: 23px; }
@@ -510,6 +518,14 @@ form textarea { min-height: 72px; resize: vertical; }
   .rt-pill { padding: 6px 11px; font-size: 12px; }
   .rb-count { font-size: 12px; }
   .mobile-nav.nav-hidden { display: none; }
+
+  /* 正文舒适化：约 16px、行高 1.8、段落间距、左右留白 */
+  .read-content { line-height: 1.8; padding: 0 4px; }
+  .read-para { font-size: 16px; line-height: 1.85; margin-bottom: 18px; white-space: pre-wrap; word-break: break-word; }
+  .read-empty { font-size: 14px; line-height: 1.8; }
+  .read-summary-label { font-size: 13px; }
+  .read-body { padding: 10px 2px 32px; }
+  .read-origin { display: block; width: 100%; text-align: center; box-sizing: border-box; }
 }
 
 /* ============ 站内帮助面板 ============ */
