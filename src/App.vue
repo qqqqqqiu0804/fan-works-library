@@ -172,11 +172,13 @@ async function doAuth() {
   authBusy.value = true
   try {
     if (authMode.value === 'register' && authStep.value === 'code') {
-      // 注册：verifyOtp 内部完成注册并写入密码，已建立 session
+      // 注册：verifyOtp 内部完成注册并登录
       const data = await verifySignUpCode(authCode.value.trim())
       const u = data?.user || null
       if (u) await loadUserRole(u)
-      closeAuth()
+      // 探测刚注册的账号是否真的能用密码登录；不能（部分环境下 signUp 的密码未落盘）
+      // 就无缝切到「设置密码」流程，复用刚填的密码，只多收一次邮箱验证码
+      await ensurePasswordSet()
       return
     }
     if (authMode.value === 'reset' && authStep.value === 'code') {
@@ -221,6 +223,38 @@ function closeAuth() {
   authResetCode.value = ''
   authNewPassword.value = ''
   authStep.value = 'input'
+}
+
+// 注册成功后确保账号具备「邮箱 + 密码」登录能力：
+// 先尝试用刚设的密码登录，成功说明密码已生效；失败（多为 password update required，
+// 即 signUp 传入的密码在部分 CloudBase 环境下未落盘）则复用刚填的密码，
+// 自动发重置验证码，引导用户完成一次密码设置（仅多收一次邮箱验证码）。
+async function ensurePasswordSet() {
+  const email = authEmail.value.trim()
+  const pwd = authPassword.value
+  try {
+    const res = await signInEmail(email, pwd)
+    if (res?.user) {
+      await loadUserRole(res.user)
+      closeAuth()
+      return
+    }
+  } catch (e) {
+    // 密码未生效，继续走设密流程
+  }
+  // 复用刚填的密码，进入重置 / 设密流程
+  authNewPassword.value = pwd
+  authPassword.value = ''
+  authCode.value = ''
+  try {
+    await sendResetCode(email)
+  } catch (e2) {
+    authMsg.value = '账号已创建，但设置密码失败：' + (e2?.message || e2 || '未知错误')
+    return
+  }
+  authMode.value = 'reset'
+  authStep.value = 'code'
+  authMsg.value = '账号已创建并登录 ✅ 但检测到该账号尚未启用密码登录，请查收邮箱验证码填入下方完成设置（密码已为你填好）。'
 }
 
 // 切换登录/注册/重置模式时重置状态
