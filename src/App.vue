@@ -282,7 +282,7 @@ function parseHash() {
   const m = location.hash.match(/^#\/work\/(.+)$/)
   routeWorkId.value = m ? decodeURIComponent(m[1]) : ''
 }
-const currentWork = computed(() => works.value.find((w) => w.id === routeWorkId.value) || null)
+const currentWork = computed(() => works.value.find((w) => String(w.id) === routeWorkId.value) || null)
 
 // 阅读器交互状态：当前章高亮、正文字号、章节折叠、阅读主题
 const activeChapter = ref(0)
