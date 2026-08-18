@@ -977,10 +977,6 @@ onMounted(async () => {
         <label>简介</label>
         <textarea v-model="form.summary" placeholder="一句话介绍"></textarea>
       </div>
-      <div class="field">
-        <label>封面图 URL（可空，点「识别并填充」会自动抓）</label>
-        <input v-model="form.cover_url" placeholder="https://... 封面图片地址" />
-      </div>
       <button class="submit-btn" type="submit">提交</button>
       <p class="msg">{{ msg }}</p>
     </form>
