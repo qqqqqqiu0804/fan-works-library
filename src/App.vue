@@ -41,13 +41,17 @@ function toggleExpand(id) {
   expanded.value[id] = !expanded.value[id]
 }
 
-// 作品链接：优先用 links 数组，退化到 original_url
+// 作品链接：优先用 links 数组，退化到 original_url。
+// 注意：云端 PG 的 links 列可能以 JSON 字符串（"[\"url\"]"）形式返回，
+// 必须先解析成真数组，否则会把字符串当数组，[0] 取到首个字符导致链接失效。
 function workLinks(w) {
-  return w.links && w.links.length
-    ? w.links
-    : w.original_url
-    ? [w.original_url]
-    : []
+  if (!w) return []
+  let links = w.links
+  if (typeof links === 'string') {
+    try { links = JSON.parse(links) } catch { links = [] }
+  }
+  if (!Array.isArray(links)) links = []
+  return links.length ? links : (w.original_url ? [w.original_url] : [])
 }
 function hasMulti(w) {
   return workLinks(w).length > 1
@@ -307,7 +311,7 @@ function fallbackCopy(text) {
   document.body.removeChild(ta)
 }
 function copyLink() {
-  const url = mainLink(currentWork)
+  const url = mainLink(currentWork.value)
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(url).then(() => showToast('原文链接已复制 ✓')).catch(() => fallbackCopy(url))
   } else {
