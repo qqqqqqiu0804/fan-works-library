@@ -22,7 +22,6 @@ const seed = [
     summary: '本地演示数据。连上 CloudBase 后会被真实数据覆盖。',
     category: '同人图',
     tags: ['治愈', '春'],
-    status: 1,
     created_at: new Date().toISOString()
   },
   {
@@ -35,7 +34,6 @@ const seed = [
     summary: '另一条演示数据，用来测试搜索和筛选。',
     category: '同人文',
     tags: ['群像', '悲壮'],
-    status: 1,
     created_at: new Date().toISOString()
   }
 ]
@@ -59,7 +57,6 @@ function localAdd(work) {
     ...work,
     links: work.links && work.links.length ? work.links : (work.original_url ? [work.original_url] : []),
     id: Date.now(),
-    status: 1,
     created_at: new Date().toISOString()
   })
   localStorage.setItem(STORE_KEY, JSON.stringify(list))
@@ -100,7 +97,6 @@ function normalize(work) {
     category: work.category || '',
     tags: work.tags || [],
     author_uid: authorUid,
-    status: 1,
     created_at: new Date().toISOString()
   }
 }
@@ -109,11 +105,10 @@ function normalize(work) {
 export async function getWorks({ search = '', category = '', tag = '' } = {}) {
   if (cloudbaseEnabled && db) {
     await ensureAuth()
-    // PG：postgREST 风格；只取已展示(status=1)的，最多 300 条
+    // PG：postgREST 风格；公开读取，最多 300 条
     const { data, error } = await db
       .from(TABLE)
       .select('*')
-      .eq('status', 1)
       .order('created_at', { ascending: false })
       .limit(300)
     if (error) throw error
@@ -137,7 +132,7 @@ export async function getWorks({ search = '', category = '', tag = '' } = {}) {
   return list
 }
 
-// 新增作品（无审核版：写入即 status=1 展示）
+// 新增作品（索引站：任何人可投稿，写入即公开展示）
 // work 可含 links: string[]（多章节链接）；单条投稿时 links 取 [original_url]
 export async function addWork(work) {
   const w = normalize(work)

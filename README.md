@@ -44,7 +44,7 @@ npm run dev
 详细步骤见 [`cloudbase/setup.md`](cloudbase/setup.md)，要点：
 
 1. 打开 https://console.cloud.tencent.com/tcb 新建环境，复制 **环境 ID**（形如 `kh-library-xxxxxx`）。
-2. 数据库 → 新建 `works` 表（SQL 见 `cloudbase/migrations/`）；安全规则整段替换为 `cloudbase/security-rules.json` 的内容（`{ "read": true, "write": true }`）。
+2. 数据库 → 依次执行 `cloudbase/migrations/` 下的 SQL：`20260817080636_create_works.sql`（建 `works` 表）→ `20260817192100_auth_roles_favorites.sql`（加 `author_uid` 列、建 `users`/`favorites` 表、定义 RLS 行级安全策略）。数据权限完全由这些 migration 里的 RLS policy 控制，配套可读配置见 `cloudbase/security-rules.json`。
 3. 复制 `.env.example` 为 `.env`，填入：
    ```
    VITE_CLOUDBASE_ENV_ID=你的环境ID
@@ -117,7 +117,7 @@ kh-library/
 ├─ .env.example            # 复制为 .env 填 CloudBase 环境 ID
 ├─ cloudbase/
 │  ├─ setup.md             # CloudBase 接入步骤
-│  ├─ security-rules.json  # 数据库安全规则（匿名可读可写）
+│  ├─ security-rules.json  # 数据库安全规则（与 migration 里的 RLS policy 配套）
 │  ├─ migrations/          # 建表 / 初始化 SQL
 │  └─ functions/
 │     ├─ fetchWorkMeta/     # 抓取原文元数据（标题 / 作者 / 简介）
@@ -140,16 +140,13 @@ kh-library/
 - `works.links` 是 **jsonb**，存多章节原文链接数组：`["https://.../1", "https://.../2"]`。
   - ⚠️ 前端从云数据库拿到时可能是 **JSON 字符串**，凡迭代 / 取 `[0]` 前务必先 `JSON.parse` 标准化为数组。
 - 多章节作品「复制链接」与「前往原站阅读」目前都指向 `links[0]`（首章）。
-- `status` 字段预留审核：`status=1` 才展示；加审核只需把安全规则改为需登录才写 + 加 `/admin` 页面，前端展示逻辑不动。
+- `status` 字段（smallint，默认 1）**已弃用**：审核设计已移除，前端不再读写该字段；保留列仅为向后兼容，新环境可忽略。
 
 ---
 
-## 将来加审核（扩展点）
+## 审核功能（已决定不做）
 
-1. `cloudbase/security-rules.json` 改为需要登录才写（`write` 限制为已登录）。
-2. 用 CloudBase 鉴权建一个管理员账号。
-3. 加一个 `/admin` 页面：列出 `status=0` 的作品，点「通过」改成 1。
-   前端展示逻辑（`status=1` 才显示）不用动。
+本站定位为「自己人和粉丝使用的索引站」，不需要审核流程。`status` 字段已弃用移除，所有投稿写入即公开展示；修改 / 删除权限仅限作者本人或管理员（数据权限见 migration 里的 RLS policy 与 `cloudbase/security-rules.json`）。如未来确实需要审核，再单独评估实现。
 
 ---
 

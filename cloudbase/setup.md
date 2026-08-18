@@ -5,12 +5,13 @@
 
 ## 已经帮你做好的部分（通过 WorkBuddy 的 CloudBase 连接器自动执行）
 
-- ✅ 建好 `works` 表（PostgreSQL），字段：`id / title / author / original_url / links(jsonb) / cover_url / summary / category / tags(jsonb) / status / created_at`
-- ✅ 开启行级安全（RLS），并放了两条策略：
-  - `anon_select_works`：任何人可读（`USING (true)`）
-  - `anon_insert_works`：任何人可投稿（`WITH CHECK (true)`）
-  这对应「无审核、任何人可投稿」的需求。将来加审核，把插入策略改成需要登录即可。
-- 迁移记录落在 `cloudbase/migrations/20260817080636_create_works.sql`
+- ✅ 建好 `works` 表（PostgreSQL），字段：`id / title / author / original_url / links(jsonb) / cover_url / summary / category / tags(jsonb) / created_at / author_uid`（另有 `status` 列已弃用，见下方字段表）
+- ✅ 开启行级安全（RLS），策略分级：
+  - `works_select` / `works_insert`：任何人（含游客）可读、可投稿（`USING (true)` / `WITH CHECK (true)`）
+  - `works_update` / `works_delete`：仅作者本人（`author_uid = auth.uid()`）或管理员（`is_admin()`）可改 / 删
+  - `favorites_*`：收藏仅本人可见 / 可加 / 可删（`uid = auth.uid()`）
+  这对应「无审核、任何人可投稿，但作品只能由本人或管理员维护」的需求。
+- 迁移记录落在 `cloudbase/migrations/`：`20260817080636_create_works.sql` → `20260817192100_auth_roles_favorites.sql` → `20260818000000_tighten_rls.sql`
 
 ## 你只在部署平台补一步：配置环境变量
 
@@ -37,5 +38,5 @@
 | `summary` | text | 简介（可空） |
 | `category` | text | 分类（可空） |
 | `tags` | jsonb | 标签数组 |
-| `status` | smallint | 1=展示；将来审核用 0=待审 |
+| `status` | smallint | **已弃用**：审核设计已移除，前端不再读写；保留列仅为向后兼容（来自 `20260817080636_create_works.sql`，新环境可忽略） |
 | `created_at` | timestamptz | 创建时间 |
