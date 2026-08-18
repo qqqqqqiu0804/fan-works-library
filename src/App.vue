@@ -1154,11 +1154,14 @@ onMounted(async () => {
     <button :class="{ active: tab === 'submit' }" type="button" @click="tab = 'submit'">
       <span class="mi">➕</span>投稿
     </button>
+    <button :class="{ active: tab === 'batch' }" type="button" @click="tab = 'batch'">
+      <span class="mi">📥</span>批量
+    </button>
     <button :class="{ active: showFavOnly }" type="button" @click="isLoggedIn ? (showFavOnly = !showFavOnly) : (showAuth = true)">
       <span class="mi">⭐</span>收藏
     </button>
     <button :class="{ active: isLoggedIn }" type="button" @click="isLoggedIn ? null : (showAuth = true)">
-      <span class="mi">👤</span>我的
+      <span class="mi">{{ isLoggedIn ? '👤' : '🔑' }}</span>{{ isLoggedIn ? '我的' : '登录' }}
     </button>
   </nav>
 
