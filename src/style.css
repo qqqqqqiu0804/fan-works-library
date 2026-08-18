@@ -301,6 +301,7 @@ form textarea { min-height: 72px; resize: vertical; }
 .auth-modal input { padding: 11px 12px; border: 1px solid var(--border); border-radius: 12px; font-size: 14px; background: var(--surface); color: var(--text); }
 .auth-msg { color: #C0392B; font-size: 12px; margin: 0; }
 .auth-hint { color: var(--text-sub); font-size: 11px; line-height: 1.5; margin: 0; }
+.auth-pwd-hint { color: var(--text-sub); font-size: 11px; line-height: 1.4; margin: -8px 0 0; }
 
 .admin-actions { display: flex; gap: 10px; margin-top: 8px; }
 .link-btn.danger { color: #C0392B; background: #FDECEA; }

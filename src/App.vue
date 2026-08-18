@@ -199,7 +199,14 @@ async function doAuth() {
   } catch (e) {
     let detail = e?.message || e?.msg || e?.error?.message || e?.code || e?.error
     if (!detail && typeof e === 'object') detail = JSON.stringify(e)
-    authMsg.value = '操作失败：' + (detail || e || '未知错误')
+    const raw = String(detail || e || '').toLowerCase()
+    // CloudBase 对「已注册但未设密码」的账号会返回这条英文，自动切换到重置/设密流程
+    if (raw.includes('first login') && raw.includes('password update')) {
+      switchAuthMode('reset')
+      authMsg.value = '该账号尚未设置登录密码，已自动切换到「设置密码」流程。点击「获取重置验证码」，用邮箱验证后即可设置密码。'
+    } else {
+      authMsg.value = '操作失败：' + (detail || e || '未知错误')
+    }
   } finally {
     authBusy.value = false
   }
@@ -1055,6 +1062,7 @@ onMounted(async () => {
         :disabled="authStep === 'code'"
         @keyup.enter="doAuth"
       />
+      <p v-if="authMode === 'register' && authStep === 'input'" class="auth-pwd-hint">密码至少 6 位，建议同时包含字母和数字</p>
       <!-- 登录：填密码（必填） -->
       <input
         v-if="authMode === 'login'"
@@ -1094,6 +1102,7 @@ onMounted(async () => {
       <template v-if="authMode === 'reset' && authStep === 'code'">
         <input v-model="authResetCode" placeholder="邮箱收到的重置验证码" @keyup.enter="doAuth" />
         <input v-model="authNewPassword" type="password" placeholder="设新密码（至少 6 位）" @keyup.enter="doAuth" />
+        <p class="auth-pwd-hint">新密码至少 6 位，建议同时包含字母和数字</p>
         <button class="submit-btn" type="button" :disabled="authBusy" @click="doAuth">确认重置并登录</button>
         <button class="link-btn" type="button" @click="switchAuthMode('reset')">重新获取验证码</button>
       </template>
