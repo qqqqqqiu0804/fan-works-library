@@ -148,6 +148,12 @@ kh-library/
 
 本站定位为「自己人和粉丝使用的索引站」，不需要审核流程。`status` 字段已弃用移除，所有投稿写入即公开展示；修改 / 删除权限仅限作者本人或管理员（数据权限见 migration 里的 RLS policy 与 `cloudbase/security-rules.json`）。如未来确实需要审核，再单独评估实现。
 
+## 安全模型（XSS / 越权防护）
+
+- **越权**：改 / 删作品受 RLS 限制（`author_uid = auth.uid() OR is_admin()`），收藏受 `uid = auth.uid()` 限制；管理员由 `users.role='admin'` 判定（注册时 `BEFORE INSERT` 触发器强制为 `'user'`，前端无法自提权限）。
+- **存储型 XSS**：外链（`original_url` / `links` / `cover_url`）在数据库层由触发器 `trg_sanitize_work_urls` 强制只能是 `http(s)`，自动剔除 `javascript:` / `data:` / `vbscript:` 等伪协议；前端提交时再做一次协议白名单校验给出友好提示。之所以必须做在数据库层：CloudBase 的 anon accessKey 是公开的（写在前端代码里），任何人都能直接调 postgREST 接口插数据，前端校验挡不住这条路径。已实测：用 anon key 直接插入 `javascript:alert(...)`，落库后会被清空为安全链接。
+- **已知限制（暂未做）**：投稿无验证码 / 频控（任何人都可匿名投稿，存在垃圾数据风险）；`fetchWorkMeta` 云函数对传入 URL 仅校验 `http(s)` 未做内网地址封禁（SSRF 面较小，因只回传解析出的元数据、不回传响应体）；搜索在内存做、最多覆盖 300 条（数据量上来后下推数据库）。
+
 ---
 
 ## License

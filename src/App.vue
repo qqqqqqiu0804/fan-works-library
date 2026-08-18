@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getWorks, addWork, updateWork, deleteWork, upsertUser, getFavorites, addFavorite, removeFavorite } from './lib/data.js'
+import { getWorks, addWork, updateWork, deleteWork, upsertUser, getFavorites, addFavorite, removeFavorite, isHttpUrl } from './lib/data.js'
 import { cloudbaseEnabled, signInEmail, sendSignUpCode, verifySignUpCode, sendResetCode, confirmReset, cancelAuthFlow, signOutUser, onAuthChange, getAuth, getUid } from './lib/cloudbase.js'
 import { detectPlatform, fetchWorkMeta } from './lib/meta.js'
 
@@ -15,6 +15,7 @@ const tag = ref('')
 const categories = ref([])
 const tags = ref([])
 const expanded = ref({})
+const loadError = ref('')
 
 async function loadFilters() {
   const all = await getWorks({})
@@ -433,6 +434,11 @@ function startEdit(w) {
 
 async function saveEdit() {
   const id = editingId.value
+  // 协议白名单：编辑时同样不允许把原链接改成可执行伪协议
+  if (editForm.value.original_url && !isHttpUrl(editForm.value.original_url)) {
+    alert('原链接必须以 http(s):// 开头')
+    return
+  }
   try {
     await updateWork(id, {
       title: editForm.value.title,
@@ -511,6 +517,11 @@ async function submit() {
   msg.value = ''
   if (!form.value.title || !form.value.original_url) {
     msg.value = '标题和原链接是必填项'
+    return
+  }
+  // 协议白名单：原链接必须是 http(s)，挡掉 javascript:/data: 等可执行伪协议（XSS 防护）
+  if (!isHttpUrl(form.value.original_url)) {
+    msg.value = '原链接必须以 http(s):// 开头的有效链接'
     return
   }
   try {
@@ -730,8 +741,13 @@ onMounted(async () => {
   window.addEventListener('hashchange', parseHash)
   onScroll()
   parseHash()
-  await loadFilters()
-  await load()
+  try {
+    await loadFilters()
+    await load()
+  } catch (e) {
+    // 数据加载失败（如云端不可达）也要让页面可用，给出可读提示而非白屏
+    loadError.value = '作品列表加载失败：' + (e?.message || e) + '（可稍后硬刷重试）'
+  }
 })
 </script>
 
@@ -868,6 +884,7 @@ onMounted(async () => {
 
   <!-- ============ 浏览页 ============ -->
   <section v-else-if="tab === 'browse'">
+    <p v-if="loadError" class="hint err">{{ loadError }}</p>
     <p v-if="!cloudbaseEnabled" class="hint">
       当前为本地演示模式（数据存你浏览器）。配置 VITE_CLOUDBASE_ENV_ID 即可切换云端、数据统一。
     </p>

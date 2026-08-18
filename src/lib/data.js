@@ -10,6 +10,13 @@ const TABLE = 'works'
 
 const STORE_KEY = 'fan_works_local'
 
+// 仅允许 http(s) 链接，挡掉 javascript:/data:/vbscript: 等可执行的伪协议。
+// 这是 XSS 的最后一道门：即便有人拿公开 anon key 直接调接口插入恶意链接，
+// 下面的 normalize + 数据库触发器也会在写入前把它清掉。
+export function isHttpUrl(u) {
+  return typeof u === 'string' && /^https?:\/\//i.test(u.trim())
+}
+
 // ---- 本地演示用的种子数据（仅本地模式可见） ----
 const seed = [
   {
@@ -77,22 +84,31 @@ function ensureAuth() {
 }
 
 // 标准化一条作品：保证 links 是数组（PG 里存为 jsonb）
+// 关键：links / original_url / cover_url 只要不是 http(s) 一律剔除，
+// 防止 javascript: 等可执行伪协议被写进库后，在模板 :href 里点击执行（存储型 XSS）。
+function sanitizeLinks(arr) {
+  if (!Array.isArray(arr)) return []
+  return arr.filter((l) => isHttpUrl(l))
+}
 function normalize(work) {
-  const links = work.links && work.links.length
-    ? work.links
-    : (work.original_url ? [work.original_url] : [])
+  const rawLinks = work.links && work.links.length ? work.links : (work.original_url ? [work.original_url] : [])
+  const links = sanitizeLinks(rawLinks)
   // author_uid：仅在「已邮箱登录」时归属，匿名投稿不记作者（无法事后管理）
   let authorUid = work.author_uid || null
   if (!authorUid && cloudbaseEnabled && app) {
     const u = app.auth().currentUser
     if (u && u.email) authorUid = u.uid
   }
+  // original_url 必须是 http(s)，否则退化到 links[0]，再不行置空（NOT NULL 允许空串）
+  const original_url = isHttpUrl(work.original_url)
+    ? work.original_url.trim()
+    : (links[0] || '')
   return {
     title: work.title,
     author: work.author || '',
-    original_url: work.original_url || links[0] || '',
+    original_url,
     links,
-    cover_url: work.cover_url || '',
+    cover_url: isHttpUrl(work.cover_url) ? work.cover_url.trim() : '',
     summary: work.summary || '',
     category: work.category || '',
     tags: work.tags || [],

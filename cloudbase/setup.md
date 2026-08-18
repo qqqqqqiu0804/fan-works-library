@@ -11,7 +11,8 @@
   - `works_update` / `works_delete`：仅作者本人（`author_uid = auth.uid()`）或管理员（`is_admin()`）可改 / 删
   - `favorites_*`：收藏仅本人可见 / 可加 / 可删（`uid = auth.uid()`）
   这对应「无审核、任何人可投稿，但作品只能由本人或管理员维护」的需求。
-- 迁移记录落在 `cloudbase/migrations/`：`20260817080636_create_works.sql` → `20260817192100_auth_roles_favorites.sql` → `20260818000000_tighten_rls.sql`
+- ✅ `works` 表加了 **URL 安全触发器** `trg_sanitize_work_urls`（`20260818200000_sanitize_urls.sql`）：写入前强制 `original_url / links / cover_url` 只能是 `http(s)` 链接，自动剔除 `javascript:` / `data:` / `vbscript:` 等可执行伪协议。这是 XSS 的最后一道门——因为 anon accessKey 是公开的，任何人都能直接调 postgREST 接口插数据，所以必须在数据库层兜底，光靠前端校验不够。
+- 迁移记录落在 `cloudbase/migrations/`：`20260817080636_create_works.sql` → `20260817192100_auth_roles_favorites.sql` → `20260818000000_tighten_rls.sql` → `20260818200000_sanitize_urls.sql`
 
 ## 你只在部署平台补一步：配置环境变量
 
