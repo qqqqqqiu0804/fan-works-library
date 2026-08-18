@@ -275,6 +275,22 @@ function onScroll() {
   scrollProgress.value = h > 0 ? Math.min(1, window.scrollY / h) : 0
 }
 
+// ---------- 站内阅读页（hash 路由 #/work/:id） ----------
+// 不引入 vue-router：刷新可保持，也不动静态托管 SPA 配置。
+const routeWorkId = ref('')
+function parseHash() {
+  const m = location.hash.match(/^#\/work\/(.+)$/)
+  routeWorkId.value = m ? decodeURIComponent(m[1]) : ''
+}
+const currentWork = computed(() => works.value.find((w) => w.id === routeWorkId.value) || null)
+function openWork(w) {
+  location.hash = '#/work/' + encodeURIComponent(w.id)
+}
+function closeWork() {
+  history.replaceState(null, '', location.pathname + location.search)
+  routeWorkId.value = ''
+}
+
 // ---------- 作品编辑 / 删除（受 canEdit 控制） ----------
 const editingId = ref(null)
 const editForm = ref({})
@@ -585,7 +601,9 @@ onMounted(async () => {
     onAuthChange((u) => loadUserRole(u))
   }
   window.addEventListener('scroll', onScroll, { passive: true })
+  window.addEventListener('hashchange', parseHash)
   onScroll()
+  parseHash()
   await loadFilters()
   await load()
 })
@@ -616,8 +634,47 @@ onMounted(async () => {
     </div>
   </header>
 
+  <!-- ============ 站内阅读页 ============ -->
+  <section v-if="currentWork" class="read-view">
+    <button class="back-btn" type="button" @click="closeWork">← 返回图书馆</button>
+    <div class="read-hero">
+      <div class="read-cover">
+        <img v-if="currentWork.cover_url" :src="currentWork.cover_url" :alt="currentWork.title" loading="lazy" />
+        <span v-else class="read-cover-ph">{{ (currentWork.title || '?').charAt(0) }}</span>
+      </div>
+      <div class="read-info">
+        <h1 class="read-title">{{ currentWork.title }}</h1>
+        <div class="read-meta">
+          <span v-if="detectPlatform(currentWork.original_url).platform !== 'other'" class="badge plat">{{ detectPlatform(currentWork.original_url).label }}</span>
+          <span class="read-author">作者：{{ currentWork.author || '佚名' }}</span>
+          <span v-if="currentWork.category" class="read-cat">{{ currentWork.category }}</span>
+        </div>
+        <p v-if="currentWork.summary" class="read-sum">{{ currentWork.summary }}</p>
+        <div class="c-tags" v-if="currentWork.tags && currentWork.tags.length">
+          <span v-for="t in currentWork.tags" :key="t">#{{ t }}</span>
+        </div>
+        <div class="read-actions">
+          <button class="fav-inline" :class="{ active: favorites.has(currentWork.id) }" type="button" @click="toggleFav(currentWork)">
+            ★ {{ favorites.has(currentWork.id) ? '已收藏' : '收藏' }}
+          </button>
+          <a class="link-btn" :href="mainLink(currentWork)" target="_blank" rel="noopener">打开原站阅读 ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="read-chapters" v-if="hasMulti(currentWork)">
+      <h2>章节目录（共 {{ workLinks(currentWork).length }} 章）</h2>
+      <ol>
+        <li v-for="(l, i) in workLinks(currentWork)" :key="i">
+          <a :href="l" target="_blank" rel="noopener">第 {{ i + 1 }} 章 ↗</a>
+        </li>
+      </ol>
+    </div>
+    <p v-else class="read-single">这是单篇作品，点上方「打开原站阅读」前往原文 🔗</p>
+  </section>
+
   <!-- ============ 浏览页 ============ -->
-  <section v-if="tab === 'browse'">
+  <section v-else-if="tab === 'browse'">
     <p v-if="!cloudbaseEnabled" class="hint">
       当前为本地演示模式（数据存你浏览器）。配置 VITE_CLOUDBASE_ENV_ID 即可切换云端、数据统一。
     </p>
@@ -688,6 +745,7 @@ onMounted(async () => {
             <div v-if="w.summary" class="c-sum">{{ w.summary }}</div>
             <div class="c-tags"><span v-for="t in (w.tags || [])" :key="t">#{{ t }}</span></div>
             <div class="card-actions">
+              <button class="link-btn ghost" type="button" @click="openWork(w)">详情 →</button>
               <template v-if="hasMulti(w)">
                 <button class="link-btn ghost" type="button" @click="toggleExpand(w.id)">
                   {{ expanded[w.id] ? '收起' : `展开 ${workLinks(w).length} 章` }}
@@ -893,7 +951,7 @@ onMounted(async () => {
 
   <!-- ============ 移动端底部导航 ============ -->
   <nav class="mobile-nav">
-    <button :class="{ active: tab === 'browse' }" type="button" @click="tab = 'browse'">
+    <button :class="{ active: currentWork || tab === 'browse' }" type="button" @click="currentWork ? closeWork() : (tab = 'browse')">
       <span class="mi">🏠</span>首页
     </button>
     <button :class="{ active: tab === 'submit' }" type="button" @click="tab = 'submit'">
