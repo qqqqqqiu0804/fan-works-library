@@ -562,3 +562,10 @@ form textarea { min-height: 72px; resize: vertical; }
   .help-modal { max-height: 92vh; }
   .help-body { font-size: 13.5px; }
 }
+
+/* ============ 反馈浮层 ============ */
+.fb-body { text-align: center; padding: 28px 22px 32px; }
+.fb-body p { margin: 0 0 12px; }
+.fb-email { font-size: 17px; }
+.fb-email a { color: var(--accent); font-weight: 700; text-decoration: none; }
+.fb-email a:hover { text-decoration: underline; }

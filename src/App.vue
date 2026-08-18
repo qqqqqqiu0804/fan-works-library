@@ -72,6 +72,7 @@ const showFavOnly = ref(false)
 
 // 登录弹窗状态
 const showAuth = ref(false)
+const showFeedback = ref(false) // 反馈联系方式浮层
 const authMode = ref('login') // 'login' | 'register' | 'reset'
 const authEmail = ref('')
 const authPassword = ref('')
@@ -942,7 +943,7 @@ onMounted(async () => {
       <div>
         <a href="#" @click.prevent="tab = 'submit'">投稿</a>
         <a href="#" @click.prevent="showHelp = true">帮助</a>
-        <a href="#" @click.prevent="showAuth = true">反馈</a>
+        <a href="#" @click.prevent="showFeedback = true">反馈</a>
         <a href="#" @click.prevent="tab = 'batch'">批量</a>
       </div>
     </footer>
@@ -1171,6 +1172,20 @@ onMounted(async () => {
           <dt>标签点不动 / 列表空白？</dt>
           <dd>硬刷一下（Ctrl+Shift+R）清掉旧缓存；还不行就反馈给站长。</dd>
         </dl>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 反馈浮层 ============ -->
+  <div v-if="showFeedback" class="help-overlay" @click.self="showFeedback = false">
+    <div class="help-modal">
+      <div class="help-head">
+        <span>反馈</span>
+        <button class="help-close" type="button" @click="showFeedback = false">✕</button>
+      </div>
+      <div class="help-body fb-body">
+        <p>bug 修改和使用反馈，请联系：</p>
+        <p class="fb-email"><a href="mailto:baby515151@126.com">baby515151@126.com</a></p>
       </div>
     </div>
   </div>
