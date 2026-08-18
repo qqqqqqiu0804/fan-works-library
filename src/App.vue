@@ -5,6 +5,7 @@ import { cloudbaseEnabled, signInEmail, sendSignUpCode, verifySignUpCode, sendRe
 import { detectPlatform, fetchWorkMeta } from './lib/meta.js'
 
 const tab = ref('browse') // 'browse' | 'submit' | 'batch'
+const showHelp = ref(false) // 站内帮助面板
 
 // ---------- 浏览页状态 ----------
 const works = ref([])
@@ -715,6 +716,7 @@ onMounted(async () => {
         </div>
       </div>
       <button class="theme-toggle" type="button" @click="toggleTheme" :title="theme === 'dark' ? '切换浅色' : '切换深色'">{{ theme === 'dark' ? '☀' : '🌙' }}</button>
+      <button class="help-btn" type="button" @click="showHelp = true" title="使用指南">?</button>
     </div>
   </header>
 
@@ -731,6 +733,7 @@ onMounted(async () => {
         <span v-if="detectPlatform(currentWork.original_url).platform !== 'other'" class="rt-pill src">{{ detectPlatform(currentWork.original_url).label }}</span>
         <button class="rt-pill fav" :class="{ active: favorites.has(currentWork.id) }" type="button" @click="toggleFav(currentWork)">★ {{ favorites.has(currentWork.id) ? '已收藏' : '收藏' }}</button>
         <button class="rt-pill theme" type="button" @click="readerTheme = readerTheme === 'sepia' ? 'default' : 'sepia'" title="切换阅读主题">主题</button>
+        <button class="rt-pill help" type="button" @click="showHelp = true" title="使用指南">帮助</button>
       </div>
     </div>
 
@@ -938,6 +941,7 @@ onMounted(async () => {
       <div>用 ♥ 收藏你喜欢的每一篇 · Powered by kh-library</div>
       <div>
         <a href="#" @click.prevent="tab = 'submit'">投稿</a>
+        <a href="#" @click.prevent="showHelp = true">帮助</a>
         <a href="#" @click.prevent="showAuth = true">反馈</a>
         <a href="#" @click.prevent="tab = 'batch'">批量</a>
       </div>
@@ -1113,6 +1117,63 @@ onMounted(async () => {
       <span class="mi">👤</span>我的
     </button>
   </nav>
+
+  <!-- ============ 站内帮助 ============ -->
+  <div v-if="showHelp" class="help-overlay" @click.self="showHelp = false">
+    <div class="help-modal">
+      <div class="help-head">
+        <span>使用指南</span>
+        <button class="help-close" type="button" @click="showHelp = false">✕</button>
+      </div>
+      <div class="help-body">
+        <h2>kh-library 使用指南</h2>
+        <p class="help-lead">这是给<strong>逛馆读者</strong>看的说明书——怎么找文、看文、存文、分享文、投稿。</p>
+
+        <h3>一、这个站是什么</h3>
+        <p>kh-library 是一个<strong>同人作品索引馆</strong>。站里不放正文，只收录每篇作品的<strong>基本信息</strong>（标题、作者、简介、标签、原站链接）。想看完整内容，点「前往原站阅读」会跳到 AO3 / 微博 / LOFTER 等<strong>原发布平台</strong>。一句话：它是个“图书馆目录”，不是“图书馆书库”。</p>
+
+        <h3>二、怎么找文</h3>
+        <ul>
+          <li><strong>按标签筛选</strong>：顶部一排标签，点一下只看这类；点「全部」取消筛选。</li>
+          <li><strong>按收藏筛选</strong>：登录后会出现「★ 我的收藏」，点一下只看你收藏过的。</li>
+          <li><strong>悬停预览</strong>：鼠标移到卡片上，会浮出简介前两句和标签，不用点进去也能快速判断。</li>
+        </ul>
+
+        <h3>三、怎么看文</h3>
+        <p>点任意卡片 → 进入<strong>阅读页</strong>。阅读页上半部分是作品信息；关键按钮 <strong>「前往原站阅读 ↗」</strong> 在新标签页打开这篇文的原站链接，正文在那边看。多章节作品右侧会列出章节目录，当前章高亮，点任意章直接跳原站对应章节。</p>
+
+        <h3>四、复制链接（分享）</h3>
+        <p>阅读页顶栏有 <strong>「🔗 复制链接」</strong> 按钮，点一下复制的是<strong>这篇文的原站链接</strong>（和「前往原站阅读」点出去的是同一个）。粘到微信 / QQ / 微博，对方点开就是原文。复制成功右下角会弹「原文链接已复制 ✓」。</p>
+
+        <h3>五、收藏</h3>
+        <p>卡片右下角和阅读页顶栏都有 <strong>★</strong>，点一下收藏、再点取消。登录后可用「★ 我的收藏」把列表筛成只显示收藏过的篇目。收藏数据跟着账号，换设备登录仍在。</p>
+
+        <h3>六、主题与护眼</h3>
+        <ul>
+          <li><strong>全站深浅色</strong>：顶栏的日/月图标切换，偏好会自动记住。</li>
+          <li><strong>阅读主题</strong>：在阅读页点「主题」，可在默认 / 护眼（米黄）之间切换。</li>
+        </ul>
+
+        <h3>七、投稿</h3>
+        <p>觉得某篇好文没收录？自己来加：切到「投稿」页，把<strong>原站链接</strong>粘进「原文链接」框，点 <strong>「识别并填充」</strong>，系统会自动抓取标题、作者、简介、标签帮你填好。检查后点「提交」即可进馆。想一次加很多篇，用「批量导入」。</p>
+
+        <h3>八、移动端</h3>
+        <p>手机上底部有一排快捷入口（投稿、收藏等）。阅读页在窄屏会自动收起右侧章节栏、把操作收进底部条。</p>
+
+        <h3>九、常见问题</h3>
+        <dl>
+          <dt>为什么不能直接在站里看正文？</dt>
+          <dd>版权与平台规则所限，站里只做索引。正文永远在原站，点「前往原站阅读」即可。</dd>
+          <dt>复制出来的链接打不开？</dt>
+          <dd>那通常是原站链接本身失效/被删（原平台的事）。复制的是原文地址，原站改了我们改不了。</dd>
+          <dt>我收藏的文没了？</dt>
+          <dd>收藏跟账号走。没登录或换号会看不到；清了浏览器数据也可能丢。</dd>
+          <dt>标签点不动 / 列表空白？</dt>
+          <dd>硬刷一下（Ctrl+Shift+R）清掉旧缓存；还不行就反馈给站长。</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
 
   <!-- 复制链接 toast -->
   <div class="toast" :class="{ show: toastMsg }">{{ toastMsg }}</div>
