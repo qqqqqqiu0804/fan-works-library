@@ -283,12 +283,49 @@ function parseHash() {
   routeWorkId.value = m ? decodeURIComponent(m[1]) : ''
 }
 const currentWork = computed(() => works.value.find((w) => w.id === routeWorkId.value) || null)
+
+// 阅读器交互状态：当前章高亮、正文字号、章节折叠、阅读主题
+const activeChapter = ref(0)
+const readerFont = ref(18)
+const expandedChapters = ref(false)
+const readerTheme = ref('default')
+const chapterBtns = computed(() => {
+  if (!currentWork.value) return []
+  const n = workLinks(currentWork.value).length
+  if (n <= 8 || expandedChapters.value) return Array.from({ length: n }, (_, i) => i)
+  return Array.from({ length: 8 }, (_, i) => i)
+})
 function openWork(w) {
+  activeChapter.value = 0
+  expandedChapters.value = false
+  readerFont.value = 18
+  readerTheme.value = 'default'
   location.hash = '#/work/' + encodeURIComponent(w.id)
 }
 function closeWork() {
   history.replaceState(null, '', location.pathname + location.search)
   routeWorkId.value = ''
+}
+// 点章节：高亮并前往该章原站（站内不存正文，正文在外部平台）
+function goChapter(ci) {
+  if (!currentWork.value) return
+  activeChapter.value = ci
+  const links = workLinks(currentWork.value)
+  if (links[ci]) window.open(links[ci], '_blank', 'noopener')
+  document.getElementById('read-body')?.scrollIntoView({ behavior: 'smooth' })
+}
+function prevChapter() {
+  if (activeChapter.value > 0) goChapter(activeChapter.value - 1)
+}
+function nextChapter() {
+  const n = currentWork.value ? workLinks(currentWork.value).length : 0
+  if (activeChapter.value < n - 1) goChapter(activeChapter.value + 1)
+}
+function changeFont(d) {
+  readerFont.value = Math.min(24, Math.max(14, readerFont.value + d))
+}
+function goChapterList() {
+  document.getElementById('read-chapterbar')?.scrollIntoView({ behavior: 'smooth' })
 }
 
 // ---------- 作品编辑 / 删除（受 canEdit 控制） ----------
@@ -611,7 +648,7 @@ onMounted(async () => {
 
 <template>
   <div class="progress-bar" :style="{ transform: `scaleX(${scrollProgress})` }"></div>
-  <header>
+  <header v-show="!currentWork">
     <div class="nav-inner">
       <div class="title">
         <span class="logo">
@@ -635,42 +672,77 @@ onMounted(async () => {
   </header>
 
   <!-- ============ 站内阅读页 ============ -->
-  <section v-if="currentWork" class="read-view">
-    <button class="back-btn" type="button" @click="closeWork">← 返回图书馆</button>
-    <div class="read-hero">
-      <div class="read-cover">
-        <img v-if="currentWork.cover_url" :src="currentWork.cover_url" :alt="currentWork.title" loading="lazy" />
-        <span v-else class="read-cover-ph">{{ (currentWork.title || '?').charAt(0) }}</span>
+  <section v-if="currentWork" class="read-view" :class="{ 'reading-sepia': readerTheme === 'sepia' }">
+    <!-- 顶栏 -->
+    <div class="read-topbar">
+      <div class="rt-left">
+        <button class="rt-back" type="button" @click="closeWork" title="返回图书馆">←</button>
+        <span class="rt-title">{{ currentWork.title }}</span>
       </div>
-      <div class="read-info">
-        <h1 class="read-title">{{ currentWork.title }}</h1>
-        <div class="read-meta">
-          <span v-if="detectPlatform(currentWork.original_url).platform !== 'other'" class="badge plat">{{ detectPlatform(currentWork.original_url).label }}</span>
-          <span class="read-author">作者：{{ currentWork.author || '佚名' }}</span>
-          <span v-if="currentWork.category" class="read-cat">{{ currentWork.category }}</span>
-        </div>
-        <p v-if="currentWork.summary" class="read-sum">{{ currentWork.summary }}</p>
-        <div class="c-tags" v-if="currentWork.tags && currentWork.tags.length">
-          <span v-for="t in currentWork.tags" :key="t">#{{ t }}</span>
-        </div>
-        <div class="read-actions">
-          <button class="fav-inline" :class="{ active: favorites.has(currentWork.id) }" type="button" @click="toggleFav(currentWork)">
-            ★ {{ favorites.has(currentWork.id) ? '已收藏' : '收藏' }}
-          </button>
-          <a class="link-btn" :href="mainLink(currentWork)" target="_blank" rel="noopener">打开原站阅读 ↗</a>
-        </div>
+      <div class="rt-right">
+        <span v-if="detectPlatform(currentWork.original_url).platform !== 'other'" class="rt-pill src">{{ detectPlatform(currentWork.original_url).label }}</span>
+        <button class="rt-pill fav" :class="{ active: favorites.has(currentWork.id) }" type="button" @click="toggleFav(currentWork)">★ {{ favorites.has(currentWork.id) ? '已收藏' : '收藏' }}</button>
+        <button class="rt-pill theme" type="button" @click="readerTheme = readerTheme === 'sepia' ? 'default' : 'sepia'" title="切换阅读主题">主题</button>
       </div>
     </div>
 
-    <div class="read-chapters" v-if="hasMulti(currentWork)">
-      <h2>章节目录（共 {{ workLinks(currentWork).length }} 章）</h2>
-      <ol>
-        <li v-for="(l, i) in workLinks(currentWork)" :key="i">
-          <a :href="l" target="_blank" rel="noopener">第 {{ i + 1 }} 章 ↗</a>
-        </li>
-      </ol>
+    <!-- 作品信息 -->
+    <div class="read-metahead">
+      <h1 class="read-bigtitle">{{ currentWork.title }}</h1>
+      <div class="read-chips">
+        <span class="rc">✍ {{ currentWork.author || '佚名' }}</span>
+        <span v-if="detectPlatform(currentWork.original_url).platform !== 'other'" class="rc type">{{ detectPlatform(currentWork.original_url).label }}</span>
+        <span v-if="currentWork.category" class="rc">{{ currentWork.category }}</span>
+        <span class="rc">{{ workLinks(currentWork).length > 1 ? '共 ' + workLinks(currentWork).length + ' 章' : '单篇作品' }}</span>
+      </div>
     </div>
-    <p v-else class="read-single">这是单篇作品，点上方「打开原站阅读」前往原文 🔗</p>
+
+    <!-- 章节选择 -->
+    <div id="read-chapterbar" class="read-chapterbar" v-if="workLinks(currentWork).length > 1">
+      <button
+        v-for="ci in chapterBtns"
+        :key="ci"
+        class="ch-chip"
+        :class="{ active: ci === activeChapter }"
+        type="button"
+        @click="goChapter(ci)"
+      >第 {{ ci + 1 }} 章</button>
+      <button v-if="workLinks(currentWork).length > 8 && !expandedChapters" class="ch-chip more" type="button" @click="expandedChapters = true">
+        +{{ workLinks(currentWork).length - 8 }} 章
+      </button>
+    </div>
+
+    <!-- 正文容器（站内展示简介，完整正文在原站） -->
+    <div id="read-body" class="read-body">
+      <div class="read-content" :style="{ fontSize: readerFont + 'px' }">
+        <template v-if="currentWork.summary">
+          <p class="read-summary-label">内容简介</p>
+          <p class="read-para">{{ currentWork.summary }}</p>
+        </template>
+        <p v-else class="read-empty">本文托管于 {{ detectPlatform(currentWork.original_url).label || '外部平台' }}，站内展示作品信息，完整正文请前往原站阅读。</p>
+        <a class="read-origin" :href="mainLink(currentWork)" target="_blank" rel="noopener">前往原站阅读 ↗</a>
+      </div>
+    </div>
+
+    <!-- 底部阅读条 -->
+    <div class="read-bottombar" v-if="workLinks(currentWork).length > 1">
+      <button class="rb-btn" type="button" :disabled="activeChapter === 0" @click="prevChapter">← 上一章</button>
+      <span class="rb-count">第 {{ activeChapter + 1 }} / {{ workLinks(currentWork).length }} 章</span>
+      <button class="rb-btn primary" type="button" :disabled="activeChapter === workLinks(currentWork).length - 1" @click="nextChapter">下一章 →</button>
+      <div class="rb-set">
+        <button class="rb-icon" type="button" @click="changeFont(-1)" title="缩小字号">A−</button>
+        <button class="rb-icon" type="button" @click="changeFont(1)" title="放大字号">A＋</button>
+        <button class="rb-icon" type="button" @click="goChapterList" title="目录">≡</button>
+      </div>
+    </div>
+    <div class="read-bottombar single" v-else>
+      <a class="rb-btn primary full" :href="mainLink(currentWork)" target="_blank" rel="noopener">前往原站阅读 ↗</a>
+      <div class="rb-set">
+        <button class="rb-icon" type="button" @click="changeFont(-1)" title="缩小字号">A−</button>
+        <button class="rb-icon" type="button" @click="changeFont(1)" title="放大字号">A＋</button>
+        <button class="rb-icon" type="button" @click="readerTheme = readerTheme === 'sepia' ? 'default' : 'sepia'" title="主题">主题</button>
+      </div>
+    </div>
   </section>
 
   <!-- ============ 浏览页 ============ -->
@@ -950,7 +1022,7 @@ onMounted(async () => {
   </div>
 
   <!-- ============ 移动端底部导航 ============ -->
-  <nav class="mobile-nav">
+  <nav class="mobile-nav" :class="{ 'nav-hidden': currentWork }">
     <button :class="{ active: currentWork || tab === 'browse' }" type="button" @click="currentWork ? closeWork() : (tab = 'browse')">
       <span class="mi">🏠</span>首页
     </button>
