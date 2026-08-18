@@ -302,14 +302,14 @@ function fallbackCopy(text) {
   ta.style.opacity = '0'
   document.body.appendChild(ta)
   ta.select()
-  try { document.execCommand('copy'); showToast('链接已复制 ✓') }
+  try { document.execCommand('copy'); showToast('原文链接已复制 ✓') }
   catch { showToast('复制失败，请手动复制地址栏链接') }
   document.body.removeChild(ta)
 }
 function copyLink() {
-  const url = location.origin + location.pathname + location.hash
+  const url = mainLink(currentWork)
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(url).then(() => showToast('链接已复制 ✓')).catch(() => fallbackCopy(url))
+    navigator.clipboard.writeText(url).then(() => showToast('原文链接已复制 ✓')).catch(() => fallbackCopy(url))
   } else {
     fallbackCopy(url)
   }
@@ -723,7 +723,7 @@ onMounted(async () => {
         <span class="rt-title">{{ currentWork.title }}</span>
       </div>
       <div class="rt-right">
-        <button class="rt-pill copy" type="button" @click="copyLink" title="复制本页链接">🔗 复制链接</button>
+        <button class="rt-pill copy" type="button" @click="copyLink" title="复制原文链接">🔗 复制链接</button>
         <span v-if="detectPlatform(currentWork.original_url).platform !== 'other'" class="rt-pill src">{{ detectPlatform(currentWork.original_url).label }}</span>
         <button class="rt-pill fav" :class="{ active: favorites.has(currentWork.id) }" type="button" @click="toggleFav(currentWork)">★ {{ favorites.has(currentWork.id) ? '已收藏' : '收藏' }}</button>
         <button class="rt-pill theme" type="button" @click="readerTheme = readerTheme === 'sepia' ? 'default' : 'sepia'" title="切换阅读主题">主题</button>
@@ -860,10 +860,6 @@ onMounted(async () => {
 
     <div class="grid">
       <div v-for="w in visibleWorks" :key="w.id" class="card">
-        <div class="c-cover">
-          <img v-if="w.cover_url" :src="w.cover_url" :alt="w.title" loading="lazy" />
-          <span v-else class="c-cover-ph">{{ (w.title || '?').charAt(0) }}</span>
-        </div>
         <template v-if="editingId === w.id">
           <div class="c-body">
             <div class="edit-form">
@@ -911,10 +907,6 @@ onMounted(async () => {
           </div>
           <!-- 悬停预览气泡 -->
           <div class="card-preview">
-            <div class="cp-cover">
-              <img v-if="w.cover_url" :src="w.cover_url" :alt="w.title" loading="lazy" />
-              <span v-else class="cp-ph">{{ (w.title || '?').charAt(0) }}</span>
-            </div>
             <div class="cp-body">
               <div class="cp-title">{{ w.title }}</div>
               <div class="cp-meta">{{ w.author || '佚名' }} · {{ w.category || '未分类' }}</div>

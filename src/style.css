@@ -147,14 +147,7 @@ header {
   animation: fadeInUp .35s ease both;
 }
 .card:hover { transform: translateY(-4px); box-shadow: var(--shadow); border-color: var(--border-strong); z-index: 5; }
-.c-cover { position: relative; width: 100%; height: 150px; overflow: hidden; background: var(--tint); border-radius: var(--radius) var(--radius) 0 0; }
-.c-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.c-cover-ph {
-  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-  font-family: "ZCOOL KuaiLe", sans-serif; font-size: 44px; color: #fff;
-  background: var(--accent);
-}
-.card .c-body { padding: 14px 16px 16px; display: flex; flex-direction: column; flex: 1; border-radius: 0 0 var(--radius) var(--radius); }
+.card .c-body { padding: 14px 16px 16px; display: flex; flex-direction: column; flex: 1; }
 .card .c-title { font-size: 16px; font-weight: 500; margin: 2px 0 5px; line-height: 1.4; color: var(--text); }
 .card .c-meta { font-size: 12px; color: var(--text-sub); }
 .card .c-sum { font-size: 12px; color: var(--text-mut); margin-top: 6px; line-height: 1.55;
@@ -193,17 +186,13 @@ header {
 
 /* 卡片悬停预览气泡 */
 .card-preview {
-  position: absolute; left: 0; right: 0; top: 100%; margin-top: 10px; z-index: 50;
+  position: absolute; left: calc(50% - 160px); width: 320px; top: 100%; margin-top: 10px; z-index: 50;
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
   box-shadow: var(--shadow); overflow: hidden;
   opacity: 0; visibility: hidden; transform: translateY(6px); pointer-events: none;
   transition: opacity .18s ease, transform .18s ease, visibility .18s;
 }
 .card:hover .card-preview { opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto; }
-.cp-cover { width: 100%; height: 160px; overflow: hidden; background: var(--tint); }
-.cp-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.cp-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-  font-family: "ZCOOL KuaiLe", sans-serif; font-size: 56px; color: #fff; background: var(--accent); }
 .cp-body { padding: 12px 14px 14px; }
 .cp-title { font-size: 15px; font-weight: 500; margin-bottom: 4px; color: var(--text); line-height: 1.4; }
 .cp-meta { font-size: 12px; color: var(--text-sub); margin-bottom: 6px; }
