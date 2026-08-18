@@ -66,14 +66,16 @@ function localAdd(work) {
 }
 
 // 匿名登录（安全规则已放行匿名读写，登录可选；失败忽略不影响）
+// 注意：若已用邮箱登录（currentUser.email 存在），不要再匿名覆盖会话。
 let authReady = null
 function ensureAuth() {
   if (!cloudbaseEnabled || !app) return Promise.resolve()
   if (authReady) return authReady
-  authReady = app
-    .auth()
-    .signInAnonymously()
-    .catch(() => {})
+  authReady = (async () => {
+    const cur = app.auth().currentUser
+    if (cur && cur.email) return
+    await app.auth().signInAnonymously().catch(() => {})
+  })()
   return authReady
 }
 
@@ -82,6 +84,12 @@ function normalize(work) {
   const links = work.links && work.links.length
     ? work.links
     : (work.original_url ? [work.original_url] : [])
+  // author_uid：仅在「已邮箱登录」时归属，匿名投稿不记作者（无法事后管理）
+  let authorUid = work.author_uid || null
+  if (!authorUid && cloudbaseEnabled && app) {
+    const u = app.auth().currentUser
+    if (u && u.email) authorUid = u.uid
+  }
   return {
     title: work.title,
     author: work.author || '',
@@ -91,6 +99,7 @@ function normalize(work) {
     summary: work.summary || '',
     category: work.category || '',
     tags: work.tags || [],
+    author_uid: authorUid,
     status: 1,
     created_at: new Date().toISOString()
   }
@@ -163,4 +172,57 @@ export async function deleteWork(id) {
   }
   const list = localGet().filter((w) => w.id !== id)
   localStorage.setItem(STORE_KEY, JSON.stringify(list))
+}
+
+// ---------- 用户 / 角色 / 收藏 ----------
+
+// 首次登录 upsert 一行用户记录（role 由库触发器强制为 'user'，防越权），
+// 返回该用户角色。管理员需手动在控制台/SQL 把 role 改成 'admin'。
+export async function upsertUser(uid, email) {
+  if (cloudbaseEnabled && db) {
+    await ensureAuth()
+    const { error: ie } = await db.from('users').upsert({ uid, email }, { onConflict: 'uid' })
+    if (ie) throw ie
+    const { data, error } = await db.from('users').select('role').eq('uid', uid).single()
+    if (error) throw error
+    return data?.role || 'user'
+  }
+  return 'user'
+}
+
+// 读取某用户的收藏 work_id 列表
+export async function getFavorites(uid) {
+  if (cloudbaseEnabled && db) {
+    await ensureAuth()
+    const { data, error } = await db.from('favorites').select('work_id').eq('uid', uid)
+    if (error) throw error
+    return (data || []).map((r) => r.work_id)
+  }
+  const raw = localStorage.getItem('kh_fav_' + uid)
+  return raw ? JSON.parse(raw) : []
+}
+
+export async function addFavorite(uid, workId) {
+  if (cloudbaseEnabled && db) {
+    await ensureAuth()
+    const { error } = await db.from('favorites').insert({ uid, work_id: workId })
+    if (error) throw error
+    return
+  }
+  const list = await getFavorites(uid)
+  if (!list.includes(workId)) {
+    list.push(workId)
+    localStorage.setItem('kh_fav_' + uid, JSON.stringify(list))
+  }
+}
+
+export async function removeFavorite(uid, workId) {
+  if (cloudbaseEnabled && db) {
+    await ensureAuth()
+    const { error } = await db.from('favorites').delete().eq('uid', uid).eq('work_id', workId)
+    if (error) throw error
+    return
+  }
+  const list = (await getFavorites(uid)).filter((id) => id !== workId)
+  localStorage.setItem('kh_fav_' + uid, JSON.stringify(list))
 }

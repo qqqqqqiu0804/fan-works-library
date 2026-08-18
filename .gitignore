@@ -1,4 +1,5 @@
 node_modules
 dist
+dist_bak_*
 .env
 .DS_Store

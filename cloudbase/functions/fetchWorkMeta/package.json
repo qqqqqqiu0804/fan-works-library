@@ -1,0 +1,9 @@
+{
+  "name": "fetchWorkMeta",
+  "version": "1.0.0",
+  "description": "抓取同人作品外链的 OG 元数据并识别来源平台",
+  "main": "index.js",
+  "dependencies": {
+    "cheerio": "1.0.0-rc.12"
+  }
+}

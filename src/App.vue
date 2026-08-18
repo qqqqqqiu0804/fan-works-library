@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getWorks, addWork, updateWork, deleteWork } from './lib/data.js'
-import { cloudbaseEnabled } from './lib/cloudbase.js'
+import { getWorks, addWork, updateWork, deleteWork, upsertUser, getFavorites, addFavorite, removeFavorite } from './lib/data.js'
+import { cloudbaseEnabled, signInEmail, sendSignUpCode, verifySignUpCode, sendResetCode, confirmReset, cancelAuthFlow, signOutUser, onAuthChange, getAuth, getUid } from './lib/cloudbase.js'
+import { detectPlatform, fetchWorkMeta } from './lib/meta.js'
 
 const tab = ref('browse') // 'browse' | 'submit' | 'batch'
 
@@ -54,37 +55,210 @@ function mainLink(w) {
   return workLinks(w)[0] || '#'
 }
 
-// ---------- 管理后台（前端口令保护） ----------
-// 后端 RLS 已放行匿名改删，这里的前端口令只挡普通访客误删，非安全边界。
-const ADMIN_KEY = 'kh_admin_pwd'
-const ADMIN_SET = 'kh_admin_pwd_set'
-const adminMode = ref(false)
-const showPwd = ref(false)
-const pwdInput = ref('')
-const editingId = ref(null)
-const editForm = ref({})
-const hasPwd = computed(() => !!localStorage.getItem(ADMIN_SET))
+// ---------- 登录与角色 ----------
+// 角色三档：visitor（匿名游客）/ user（邮箱登录普通用户）/ admin（管理员）
+// 后端 RLS 对所有角色放行（提交即展示的初衷），这里的角色只驱动 UI 显示哪些按钮。
+const user = ref(null) // { uid, email, role } 或 null（游客）
+const isAdmin = computed(() => user.value?.role === 'admin')
+const isLoggedIn = computed(() => !!user.value)
+const favorites = ref(new Set())
+const showFavOnly = ref(false)
 
-function enterAdmin() {
-  const saved = localStorage.getItem(ADMIN_KEY)
-  if (!localStorage.getItem(ADMIN_SET)) {
-    if (!pwdInput.value.trim()) return
-    localStorage.setItem(ADMIN_KEY, pwdInput.value.trim())
-    localStorage.setItem(ADMIN_SET, '1')
-  } else if (pwdInput.value.trim() !== saved) {
-    alert('口令错误')
-    pwdInput.value = ''
+// 登录弹窗状态
+const showAuth = ref(false)
+const authMode = ref('login') // 'login' | 'register' | 'reset'
+const authEmail = ref('')
+const authPassword = ref('')
+const authMsg = ref('')
+const authBusy = ref(false)
+// 注册/重置两步：先填邮箱(注册还要密码)拿码，再填码完成
+const authStep = ref('input') // 'input'（填邮箱/密码）| 'code'（填验证码）
+const authCode = ref('')        // 注册验证码
+const authResetCode = ref('')   // 重置验证码
+const authNewPassword = ref('') // 重置时设的新密码
+const authSending = ref(false)
+
+// 只认"真账号"（有 email 的邮箱登录用户）；匿名用户 email 为空，视为游客
+async function loadUserRole(u) {
+  if (!u || !u.email) {
+    user.value = null
     return
   }
-  adminMode.value = true
-  showPwd.value = false
-  pwdInput.value = ''
+  const uid = getUid(u)
+  try {
+    const role = await upsertUser(uid, u.email)
+    user.value = { uid, email: u.email, role }
+  } catch {
+    user.value = { uid, email: u.email, role: 'user' }
+  }
+  await loadFavorites()
 }
 
-function exitAdmin() {
-  adminMode.value = false
-  editingId.value = null
+async function loadFavorites() {
+  if (!user.value) {
+    favorites.value = new Set()
+    return
+  }
+  try {
+    const ids = await getFavorites(user.value.uid)
+    favorites.value = new Set(ids)
+  } catch {
+    favorites.value = new Set()
+  }
 }
+
+// 注册 / 重置 第 1 步：发验证码
+async function sendCode() {
+  authMsg.value = ''
+  if (!authEmail.value.includes('@')) {
+    authMsg.value = '邮箱格式不对'
+    return
+  }
+  if (authMode.value === 'register' && authPassword.value.length < 6) {
+    authMsg.value = '密码至少 6 位'
+    return
+  }
+  authSending.value = true
+  try {
+    if (authMode.value === 'register') {
+      // 注册：带密码的 signUp，验证码验证后密码一并写入
+      await sendSignUpCode(authEmail.value.trim(), authPassword.value)
+      authMsg.value = '验证码已发送到邮箱，请查收并填入下方（10 分钟内有效）。'
+    } else {
+      // 重置密码：发重置验证码
+      await sendResetCode(authEmail.value.trim())
+      authMsg.value = '重置验证码已发送到邮箱，请查收并填入下方。'
+    }
+    authStep.value = 'code'
+  } catch (e) {
+    let detail = e?.message || e?.msg || e?.error?.message || e?.code || e?.error
+    if (!detail && typeof e === 'object') detail = JSON.stringify(e)
+    authMsg.value = '发送验证码失败：' + (detail || e || '未知错误')
+  } finally {
+    authSending.value = false
+  }
+}
+
+// 注册第 2 步 / 登录 / 重置第 2 步：完成对应操作
+async function doAuth() {
+  authMsg.value = ''
+  if (authMode.value === 'login') {
+    if (!authEmail.value.includes('@') || authPassword.value.length < 6) {
+      authMsg.value = '邮箱格式或密码（至少 6 位）不对'
+      return
+    }
+  } else if (authMode.value === 'register' && authStep.value === 'code') {
+    if (!authCode.value || authCode.value.trim().length < 4) {
+      authMsg.value = '请填写收到的验证码'
+      return
+    }
+  } else if (authMode.value === 'reset' && authStep.value === 'code') {
+    if (!authResetCode.value || authResetCode.value.trim().length < 4) {
+      authMsg.value = '请填写邮箱里的重置验证码'
+      return
+    }
+    if (authNewPassword.value.length < 6) {
+      authMsg.value = '新密码至少 6 位'
+      return
+    }
+  }
+  authBusy.value = true
+  try {
+    if (authMode.value === 'register' && authStep.value === 'code') {
+      // 注册：verifyOtp 内部完成注册并写入密码，已建立 session
+      const data = await verifySignUpCode(authCode.value.trim())
+      const u = data?.user || null
+      if (u) await loadUserRole(u)
+      closeAuth()
+      return
+    }
+    if (authMode.value === 'reset' && authStep.value === 'code') {
+      // 重置密码：验码 + 写密码 + 自动登录
+      const data = await confirmReset(
+        authEmail.value.trim(),
+        authResetCode.value.trim(),
+        authNewPassword.value
+      )
+      const u = data?.user || null
+      if (u) await loadUserRole(u)
+      closeAuth()
+      return
+    }
+    // 登录（邮箱 + 密码）
+    const res = await signInEmail(authEmail.value.trim(), authPassword.value)
+    const u = res?.user || null
+    if (u) await loadUserRole(u)
+    closeAuth()
+  } catch (e) {
+    let detail = e?.message || e?.msg || e?.error?.message || e?.code || e?.error
+    if (!detail && typeof e === 'object') detail = JSON.stringify(e)
+    authMsg.value = '操作失败：' + (detail || e || '未知错误')
+  } finally {
+    authBusy.value = false
+  }
+}
+
+function closeAuth() {
+  cancelAuthFlow()
+  showAuth.value = false
+  authEmail.value = ''
+  authPassword.value = ''
+  authCode.value = ''
+  authResetCode.value = ''
+  authNewPassword.value = ''
+  authStep.value = 'input'
+}
+
+// 切换登录/注册/重置模式时重置状态
+function switchAuthMode(m) {
+  authMode.value = m
+  authStep.value = 'input'
+  authCode.value = ''
+  authResetCode.value = ''
+  authNewPassword.value = ''
+  authMsg.value = ''
+  cancelAuthFlow()
+}
+
+async function doLogout() {
+  await signOutUser().catch(() => {})
+  user.value = null
+  favorites.value = new Set()
+}
+
+// 谁能编辑/删除：管理员任意；普通用户仅限自己投稿（author_uid 匹配）
+function canEdit(w) {
+  if (isAdmin.value) return true
+  if (isLoggedIn.value && w.author_uid && w.author_uid === user.value.uid) return true
+  return false
+}
+
+function toggleFav(w) {
+  if (!user.value) {
+    showAuth.value = true
+    return
+  }
+  const id = w.id
+  if (favorites.value.has(id)) {
+    removeFavorite(user.value.uid, id)
+      .then(() => { const s = new Set(favorites.value); s.delete(id); favorites.value = s })
+      .catch((e) => alert('取消收藏失败：' + e.message))
+  } else {
+    addFavorite(user.value.uid, id)
+      .then(() => { const s = new Set(favorites.value); s.add(id); favorites.value = s })
+      .catch((e) => alert('收藏失败：' + e.message))
+  }
+}
+
+// 浏览页按"我的收藏"筛选
+const displayWorks = computed(() => {
+  if (!showFavOnly.value) return works.value
+  return works.value.filter((w) => favorites.value.has(w.id))
+})
+
+// ---------- 作品编辑 / 删除（受 canEdit 控制） ----------
+const editingId = ref(null)
+const editForm = ref({})
 
 function startEdit(w) {
   editingId.value = w.id
@@ -138,9 +312,41 @@ async function removeWork(w) {
 
 // ---------- 单条投稿 ----------
 const form = ref({
-  title: '', author: '', original_url: '', summary: '', category: '', tags: ''
+  title: '', author: '', original_url: '', summary: '', category: '', tags: '', cover_url: ''
 })
 const msg = ref('')
+
+// 链接识别 + 元数据抓取状态
+const metaState = ref({ loading: false, platformLabel: '', error: '' })
+// 实时识别平台（纯正则，不联网，输入即显示徽标）
+const detected = computed(() => detectPlatform(form.value.original_url))
+
+// 调云端函数抓取外链元数据，预填表单（只在字段为空时填，避免覆盖已填内容）
+async function fetchMeta() {
+  const url = form.value.original_url.trim()
+  if (!/^https?:\/\//i.test(url)) {
+    metaState.value = { loading: false, platformLabel: '', error: '请先填写合法的原链接' }
+    return
+  }
+  metaState.value = { loading: true, platformLabel: '', error: '' }
+  try {
+    const res = await fetchWorkMeta(url)
+    if (res && res.code === 0 && res.data) {
+      const d = res.data
+      metaState.value.platformLabel = d.platformLabel || ''
+      if (d.title && !form.value.title) form.value.title = d.title
+      if (d.author && !form.value.author) form.value.author = d.author
+      if (d.coverUrl && !form.value.cover_url) form.value.cover_url = d.coverUrl
+      if (d.summary && !form.value.summary) form.value.summary = d.summary
+    } else {
+      metaState.value.error = (res && res.message) || '未获取到元数据'
+    }
+  } catch (e) {
+    metaState.value.error = '识别失败：' + (e?.message || e)
+  } finally {
+    metaState.value.loading = false
+  }
+}
 
 async function submit() {
   msg.value = ''
@@ -158,10 +364,12 @@ async function submit() {
       tags: form.value.tags
         .split(/[,，\s]+/)
         .map((s) => s.trim())
-        .filter(Boolean)
+        .filter(Boolean),
+      cover_url: form.value.cover_url
     })
     msg.value = '提交成功，已展示在列表里 🎉'
-    form.value = { title: '', author: '', original_url: '', summary: '', category: '', tags: '' }
+    form.value = { title: '', author: '', original_url: '', summary: '', category: '', tags: '', cover_url: '' }
+    metaState.value = { loading: false, platformLabel: '', error: '' }
     tab.value = 'browse'
     await loadFilters()
     await load()
@@ -353,6 +561,10 @@ async function submitBatch() {
 }
 
 onMounted(async () => {
+  const a = getAuth()
+  if (a) {
+    onAuthChange((u) => loadUserRole(u))
+  }
   await loadFilters()
   await load()
 })
@@ -370,13 +582,12 @@ onMounted(async () => {
       <button :class="{ active: tab === 'browse' }" @click="tab = 'browse'">浏览</button>
       <button :class="{ active: tab === 'submit' }" @click="tab = 'submit'">投稿</button>
       <button :class="{ active: tab === 'batch' }" @click="tab = 'batch'">批量导入</button>
-      <button class="lock-btn" type="button" @click="adminMode ? exitAdmin() : (showPwd = !showPwd)">
-        {{ adminMode ? '退出管理' : '🔒' }}
-      </button>
-    </div>
-    <div v-if="showPwd" class="pwd-bar">
-      <input v-model="pwdInput" :placeholder="hasPwd ? '输入管理口令' : '设置管理口令'" @keyup.enter="enterAdmin" />
-      <button class="submit-btn small" type="button" @click="enterAdmin">确认</button>
+      <button v-if="!isLoggedIn" class="login-btn" type="button" @click="showAuth = true">登录</button>
+      <div v-else class="user-box">
+        <span class="user-email">{{ user.email }}</span>
+        <span class="role-badge" :class="user.role">{{ user.role === 'admin' ? '管理员' : '用户' }}</span>
+        <button class="login-btn ghost" type="button" @click="doLogout">退出</button>
+      </div>
     </div>
   </header>
 
@@ -391,6 +602,7 @@ onMounted(async () => {
         <option value="">全部分类</option>
         <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
       </select>
+      <button v-if="isLoggedIn" class="fav-toggle" :class="{ active: showFavOnly }" type="button" @click="showFavOnly = !showFavOnly">★ 我的收藏</button>
     </div>
     <div class="chips">
       <span
@@ -403,8 +615,8 @@ onMounted(async () => {
     </div>
 
     <div class="grid">
-      <div v-for="w in works" :key="w.id" class="card">
-        <template v-if="adminMode && editingId === w.id">
+      <div v-for="w in displayWorks" :key="w.id" class="card">
+        <template v-if="editingId === w.id">
           <div class="edit-form">
             <input v-model="editForm.title" placeholder="标题" />
             <input v-model="editForm.author" placeholder="作者" />
@@ -419,7 +631,9 @@ onMounted(async () => {
           </div>
         </template>
         <template v-else>
+          <button class="fav-btn" :class="{ active: favorites.has(w.id) }" type="button" :title="favorites.has(w.id) ? '取消收藏' : '收藏'" @click="toggleFav(w)">★</button>
           <div class="c-title">{{ w.title }}</div>
+          <span v-if="detectPlatform(w.original_url).platform !== 'other'" class="badge plat">{{ detectPlatform(w.original_url).label }}</span>
           <div class="c-meta">{{ w.author || '佚名' }} · {{ w.category || '未分类' }}</div>
           <div v-if="w.summary" class="c-sum">{{ w.summary }}</div>
           <div class="c-tags"><span v-for="t in (w.tags || [])" :key="t">#{{ t }}</span></div>
@@ -438,7 +652,7 @@ onMounted(async () => {
             </template>
             <a v-else class="link-btn" :href="mainLink(w)" target="_blank" rel="noopener">打开链接 ↗</a>
           </div>
-          <div v-if="adminMode" class="admin-actions">
+          <div v-if="canEdit(w)" class="admin-actions">
             <button class="link-btn ghost" type="button" @click="startEdit(w)">编辑</button>
             <button class="link-btn danger" type="button" @click="removeWork(w)">删除</button>
           </div>
@@ -468,7 +682,17 @@ onMounted(async () => {
       </div>
       <div class="field">
         <label>原链接 *</label>
-        <input v-model="form.original_url" placeholder="https://..." />
+        <div class="url-row">
+          <input v-model="form.original_url" placeholder="https://..." />
+          <button type="button" class="mini-btn" :disabled="metaState.loading || !form.original_url" @click="fetchMeta">
+            {{ metaState.loading ? '识别中…' : '识别并填充' }}
+          </button>
+        </div>
+        <div class="meta-hint">
+          <span v-if="detected.platform !== 'other'" class="badge">来源：{{ detected.label }}</span>
+          <span v-if="metaState.platformLabel && metaState.platformLabel !== detected.label" class="badge ok">抓到：{{ metaState.platformLabel }}</span>
+          <span v-if="metaState.error" class="badge err">{{ metaState.error }}</span>
+        </div>
       </div>
       <div class="field">
         <label>分类</label>
@@ -481,6 +705,10 @@ onMounted(async () => {
       <div class="field">
         <label>简介</label>
         <textarea v-model="form.summary" placeholder="一句话介绍"></textarea>
+      </div>
+      <div class="field">
+        <label>封面图 URL（可空，点「识别并填充」会自动抓）</label>
+        <input v-model="form.cover_url" placeholder="https://... 封面图片地址" />
       </div>
       <button class="submit-btn" type="submit">提交</button>
       <p class="msg">{{ msg }}</p>
@@ -528,4 +756,74 @@ onMounted(async () => {
 
     <p class="msg">{{ batchMsg }}</p>
   </section>
+
+  <!-- ============ 登录弹窗 ============ -->
+  <div v-if="showAuth" class="auth-overlay" @click.self="closeAuth">
+    <div class="auth-modal">
+      <div class="auth-tabs" v-if="authMode !== 'reset'">
+        <button :class="{ active: authMode === 'login' }" type="button" @click="switchAuthMode('login')">登录</button>
+        <button :class="{ active: authMode === 'register' }" type="button" @click="switchAuthMode('register')">注册</button>
+      </div>
+      <div class="auth-tabs" v-else>
+        <button class="active" type="button" @click="switchAuthMode('login')">← 返回登录</button>
+      </div>
+
+      <input v-model="authEmail" placeholder="邮箱" :disabled="authStep === 'code'" />
+
+      <!-- 注册：设密码（必填，≥6 位） -->
+      <input
+        v-if="authMode === 'register'"
+        v-model="authPassword"
+        type="password"
+        placeholder="设密码（至少 6 位）"
+        :disabled="authStep === 'code'"
+        @keyup.enter="doAuth"
+      />
+      <!-- 登录：填密码（必填） -->
+      <input
+        v-if="authMode === 'login'"
+        v-model="authPassword"
+        type="password"
+        placeholder="密码（至少 6 位）"
+        @keyup.enter="doAuth"
+      />
+
+      <!-- 注册第 1 步：发码 -->
+      <template v-if="authMode === 'register' && authStep === 'input'">
+        <button class="submit-btn" type="button" :disabled="authSending" @click="sendCode">
+          {{ authSending ? '发送中…' : '获取邮箱验证码' }}
+        </button>
+      </template>
+
+      <!-- 注册第 2 步：填码完成 -->
+      <template v-if="authMode === 'register' && authStep === 'code'">
+        <input v-model="authCode" placeholder="邮箱收到的 6 位验证码" @keyup.enter="doAuth" />
+        <button class="submit-btn" type="button" :disabled="authBusy" @click="doAuth">注册并登录</button>
+        <button class="link-btn" type="button" @click="switchAuthMode('register')">重新获取验证码</button>
+      </template>
+
+      <!-- 登录 -->
+      <template v-if="authMode === 'login'">
+        <button class="submit-btn" type="button" :disabled="authBusy" @click="doAuth">登录</button>
+        <button class="link-btn" type="button" @click="switchAuthMode('reset')">忘记密码？</button>
+      </template>
+
+      <!-- 重置密码：第 1 步发码 -->
+      <template v-if="authMode === 'reset' && authStep === 'input'">
+        <button class="submit-btn" type="button" :disabled="authSending" @click="sendCode">
+          {{ authSending ? '发送中…' : '获取重置验证码' }}
+        </button>
+      </template>
+      <!-- 重置密码：第 2 步填码 + 新密码 -->
+      <template v-if="authMode === 'reset' && authStep === 'code'">
+        <input v-model="authResetCode" placeholder="邮箱收到的重置验证码" @keyup.enter="doAuth" />
+        <input v-model="authNewPassword" type="password" placeholder="设新密码（至少 6 位）" @keyup.enter="doAuth" />
+        <button class="submit-btn" type="button" :disabled="authBusy" @click="doAuth">确认重置并登录</button>
+        <button class="link-btn" type="button" @click="switchAuthMode('reset')">重新获取验证码</button>
+      </template>
+
+      <p v-if="authMsg" class="auth-msg">{{ authMsg }}</p>
+      <p class="auth-hint">注册即设置密码，之后可用「邮箱 + 密码」直接登录；已注册但没设过密码的账号，点登录页「忘记密码？」用邮箱验证码补设。</p>
+    </div>
+  </div>
 </template>

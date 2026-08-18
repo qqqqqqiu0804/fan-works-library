@@ -140,10 +140,64 @@ form textarea { min-height: 70px; resize: vertical; }
 .pi-warn { color: #C0392B; font-size: 11px; font-weight: 500; margin-left: 6px; }
 .pi-warn:not(:first-child) { display: block; margin-top: 4px; }
 
-/* 管理后台 */
-.tabs .lock-btn { margin-left: auto; font-size: 16px; padding: 4px 8px 12px; color: var(--text-sub); }
-.pwd-bar { display: flex; gap: 8px; padding: 8px 0 12px; }
-.pwd-bar input { flex: 1; }
+/* 登录 / 用户 */
+.login-btn {
+  margin-left: auto;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  background: transparent;
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.login-btn:hover { background: var(--accent); color: #fff; }
+.login-btn.ghost { border-color: var(--border); color: var(--text-sub); }
+.login-btn.ghost:hover { background: rgba(0,0,0,.04); color: var(--text); }
+.user-box { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.user-email { font-size: 13px; color: var(--text-sub); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.role-badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #F0997B; color: #fff; }
+.role-badge.admin { background: #8a5a2b; }
+.fav-toggle {
+  border: 1px solid var(--border); background: #fff; color: var(--text-sub);
+  border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+}
+.fav-toggle.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* 收藏按钮（卡片内） */
+.card { position: relative; }
+.fav-btn {
+  position: absolute; top: 10px; right: 10px;
+  width: 30px; height: 30px; border-radius: 50%;
+  border: none; background: rgba(0,0,0,.05); color: #bbb;
+  font-size: 15px; cursor: pointer; line-height: 1;
+  transition: transform .15s, background .15s, color .15s;
+}
+.fav-btn:hover { transform: scale(1.1); }
+.fav-btn.active { background: var(--accent); color: #fff; }
+
+/* 登录弹窗 */
+.auth-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.4);
+  display: flex; align-items: center; justify-content: center; z-index: 50;
+}
+.auth-modal {
+  width: 320px; max-width: 90vw; background: #fff; border-radius: 16px;
+  padding: 22px; box-shadow: 0 12px 40px rgba(0,0,0,.2);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.auth-tabs { display: flex; gap: 8px; }
+.auth-tabs button {
+  flex: 1; padding: 8px; border: 1px solid var(--border); background: #fff;
+  border-radius: 10px; cursor: pointer; font-size: 14px; color: var(--text-sub);
+}
+.auth-tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.auth-modal input {
+  padding: 11px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px;
+}
+.auth-msg { color: #C0392B; font-size: 12px; margin: 0; }
+.auth-hint { color: var(--text-sub); font-size: 11px; line-height: 1.5; margin: 0; }
+
 .admin-actions { display: flex; gap: 10px; margin-top: 8px; }
 .link-btn.danger { color: #C0392B; }
 .link-btn.danger:hover { color: #A93226; }
@@ -152,3 +206,22 @@ form textarea { min-height: 70px; resize: vertical; }
 .edit-form textarea { min-height: 56px; resize: vertical; }
 .edit-actions { display: flex; gap: 8px; margin-top: 2px; }
 .edit-actions .submit-btn.small { flex: 1; }
+
+/* 链接识别 + 元数据抓取 */
+.url-row { display: flex; gap: 8px; align-items: stretch; }
+.url-row input { flex: 1; }
+.mini-btn {
+  flex: 0 0 auto; padding: 0 14px; background: var(--surface); color: var(--accent);
+  border: 1px solid var(--accent-soft); border-radius: 10px; font-size: 13px; cursor: pointer;
+  white-space: nowrap; transition: background .15s ease;
+}
+.mini-btn:hover:not(:disabled) { background: var(--accent-soft); }
+.mini-btn:disabled { opacity: .5; cursor: not-allowed; }
+.meta-hint { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.badge {
+  font-size: 11px; padding: 2px 9px; border-radius: 999px; line-height: 1.6;
+  background: #F1ECE5; color: var(--text-sub); border: 1px solid var(--border);
+}
+.badge.ok { background: #E7F4EA; color: #2E7D32; border-color: #C8E6C9; }
+.badge.err { background: #FDECEA; color: #C0392B; border-color: #F5C6C0; }
+.badge.plat { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); margin-left: 2px; vertical-align: middle; }
