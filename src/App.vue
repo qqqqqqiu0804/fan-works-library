@@ -730,6 +730,9 @@ onMounted(async () => {
       </div>
     </div>
 
+    <!-- 主体 + 右侧大纲 -->
+    <div class="read-layout">
+    <div class="read-main">
     <!-- 作品信息 -->
     <div class="read-metahead">
       <h1 class="read-bigtitle">{{ currentWork.title }}</h1>
@@ -766,6 +769,31 @@ onMounted(async () => {
         <p v-else class="read-empty">本文托管于 {{ detectPlatform(currentWork.original_url).label || '外部平台' }}，站内展示作品信息，完整正文请前往原站阅读。</p>
         <a class="read-origin" :href="mainLink(currentWork)" target="_blank" rel="noopener">前往原站阅读 ↗</a>
       </div>
+    </div>
+    </div>
+
+    <!-- 右侧大纲 TOC（多章显示章节，单篇显示作品信息） -->
+    <aside class="read-toc">
+      <template v-if="workLinks(currentWork).length > 1">
+        <div class="toc-title">章节目录</div>
+        <ul class="toc-list">
+          <li v-for="ci in workLinks(currentWork).length" :key="ci - 1">
+            <button class="toc-item" :class="{ active: (ci - 1) === activeChapter }" type="button" @click="goChapter(ci - 1)">
+              第 {{ ci }} 章
+            </button>
+          </li>
+        </ul>
+      </template>
+      <div v-else class="toc-about">
+        <div class="toc-title">作品信息</div>
+        <div class="about-row">✍ {{ currentWork.author || '佚名' }}</div>
+        <div class="about-row" v-if="currentWork.category">📂 {{ currentWork.category }}</div>
+        <div class="about-row" v-if="detectPlatform(currentWork.original_url).platform !== 'other'">🔗 {{ detectPlatform(currentWork.original_url).label }}</div>
+        <div class="about-tags" v-if="currentWork.tags && currentWork.tags.length">
+          <span v-for="t in currentWork.tags" :key="t">#{{ t }}</span>
+        </div>
+      </div>
+    </aside>
     </div>
 
     <!-- 底部阅读条 -->
@@ -879,6 +907,19 @@ onMounted(async () => {
             <div v-if="canEdit(w)" class="admin-actions">
               <button class="link-btn ghost" type="button" @click="startEdit(w)">编辑</button>
               <button class="link-btn danger" type="button" @click="removeWork(w)">删除</button>
+            </div>
+          </div>
+          <!-- 悬停预览气泡 -->
+          <div class="card-preview">
+            <div class="cp-cover">
+              <img v-if="w.cover_url" :src="w.cover_url" :alt="w.title" loading="lazy" />
+              <span v-else class="cp-ph">{{ (w.title || '?').charAt(0) }}</span>
+            </div>
+            <div class="cp-body">
+              <div class="cp-title">{{ w.title }}</div>
+              <div class="cp-meta">{{ w.author || '佚名' }} · {{ w.category || '未分类' }}</div>
+              <div v-if="w.summary" class="cp-sum">{{ w.summary }}</div>
+              <div class="cp-tags"><span v-for="t in (w.tags || [])" :key="t">#{{ t }}</span></div>
             </div>
           </div>
         </template>
