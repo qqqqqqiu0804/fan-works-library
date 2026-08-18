@@ -275,6 +275,46 @@ function onScroll() {
   scrollProgress.value = h > 0 ? Math.min(1, window.scrollY / h) : 0
 }
 
+// ---------- 深浅色主题（对齐 Obsidian 极简风） ----------
+const theme = ref('light')
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t)
+  theme.value = t
+}
+function toggleTheme() {
+  const next = theme.value === 'dark' ? 'light' : 'dark'
+  applyTheme(next)
+  try { localStorage.setItem('kh-theme', next) } catch {}
+}
+
+// ---------- 复制链接 + toast ----------
+const toastMsg = ref('')
+let toastTimer = null
+function showToast(m) {
+  toastMsg.value = m
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toastMsg.value = '' }, 1800)
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea')
+  ta.value = text
+  ta.style.position = 'fixed'
+  ta.style.opacity = '0'
+  document.body.appendChild(ta)
+  ta.select()
+  try { document.execCommand('copy'); showToast('链接已复制 ✓') }
+  catch { showToast('复制失败，请手动复制地址栏链接') }
+  document.body.removeChild(ta)
+}
+function copyLink() {
+  const url = location.origin + location.pathname + location.hash
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => showToast('链接已复制 ✓')).catch(() => fallbackCopy(url))
+  } else {
+    fallbackCopy(url)
+  }
+}
+
 // ---------- 站内阅读页（hash 路由 #/work/:id） ----------
 // 不引入 vue-router：刷新可保持，也不动静态托管 SPA 配置。
 const routeWorkId = ref('')
@@ -633,6 +673,8 @@ async function submitBatch() {
 }
 
 onMounted(async () => {
+  // 应用保存的主题偏好
+  try { applyTheme(localStorage.getItem('kh-theme') || 'light') } catch { applyTheme('light') }
   const a = getAuth()
   if (a) {
     onAuthChange((u) => loadUserRole(u))
@@ -668,6 +710,7 @@ onMounted(async () => {
           <button class="login-btn ghost" type="button" @click="doLogout">退出</button>
         </div>
       </div>
+      <button class="theme-toggle" type="button" @click="toggleTheme" :title="theme === 'dark' ? '切换浅色' : '切换深色'">{{ theme === 'dark' ? '☀' : '🌙' }}</button>
     </div>
   </header>
 
@@ -680,6 +723,7 @@ onMounted(async () => {
         <span class="rt-title">{{ currentWork.title }}</span>
       </div>
       <div class="rt-right">
+        <button class="rt-pill copy" type="button" @click="copyLink" title="复制本页链接">🔗 复制链接</button>
         <span v-if="detectPlatform(currentWork.original_url).platform !== 'other'" class="rt-pill src">{{ detectPlatform(currentWork.original_url).label }}</span>
         <button class="rt-pill fav" :class="{ active: favorites.has(currentWork.id) }" type="button" @click="toggleFav(currentWork)">★ {{ favorites.has(currentWork.id) ? '已收藏' : '收藏' }}</button>
         <button class="rt-pill theme" type="button" @click="readerTheme = readerTheme === 'sepia' ? 'default' : 'sepia'" title="切换阅读主题">主题</button>
@@ -1036,4 +1080,7 @@ onMounted(async () => {
       <span class="mi">👤</span>我的
     </button>
   </nav>
+
+  <!-- 复制链接 toast -->
+  <div class="toast" :class="{ show: toastMsg }">{{ toastMsg }}</div>
 </template>
