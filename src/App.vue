@@ -694,15 +694,6 @@ const SAMPLE_TEXT = `《星河彼端》https://m.weibo.cn/detail/123456789012345
 1.0 29939：https://t.cn/AbC123
 《示例短文》20133`
 
-const TEMPLATE_TEXT = `把你的微博合集文本粘到这（删掉示例即可）。格式：
-1)《标题》 真实weibo链接
-2)【系列标题】
-   1.0 29939：http://t.cn/xxxxx
-注意：只有 16 位详情ID会被还原成链接；像 29939 这种短数字是序号，会被判无效。
-
-《作品标题》https://m.weibo.cn/detail/1234567890123456
-《另一篇》https://weibo.com/xxx/yyyyyyyyyyy`
-
 function doParse() {
   if (!batchText.value.trim()) {
     batchMsg.value = '先粘点东西进来呀（或点「看样例」填一份）'
@@ -750,10 +741,6 @@ function toCSV(rows) {
   return rows
     .map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
     .join('\n')
-}
-
-function downloadTemplate() {
-  downloadBlob('kh批量导入模板.txt', TEMPLATE_TEXT, 'text/plain;charset=utf-8')
 }
 
 function exportErrors() {
@@ -1154,7 +1141,6 @@ onMounted(async () => {
         只有 <b>16 位详情 ID</b> 会被还原成链接，短数字（如 29939）是序号会判<b>无效</b>。
       </p>
       <div class="batch-guide-actions">
-        <button class="link-btn" type="button" @click="downloadTemplate">下载模板</button>
         <button class="link-btn" type="button" @click="showSample = !showSample">看样例</button>
       </div>
       <div v-if="showSample" class="batch-sample">
