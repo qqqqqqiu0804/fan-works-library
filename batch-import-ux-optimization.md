@@ -230,4 +230,4 @@
 | 无错误导出 | 无 | 新增 CSV/Excel 导出 |
 | 可重复提交 | 按钮仅按 `preview.length` 禁用 | `submitting` 期间硬性禁用 |
 
-> 本方案为纯设计稿，落地时按上表逐一实现即可，不在本文档范围内。
+> 落地状态：已于 commit `7e238d6` 实现并部署（状态机 batchState / 进度条 batchProgress / 错误与失败 CSV 导出 / 批次内去重跳过 / submitting 期间锁提交按钮）。`src/App.vue` 新增 `doParse` 状态驱动、`submitBatch` 不中断循环 + 失败列表；`src/style.css` 新增引导/样例/汇总/进度样式。
