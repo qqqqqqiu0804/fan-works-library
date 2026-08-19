@@ -783,13 +783,13 @@ onMounted(async () => {
     <!-- 顶栏 -->
     <div class="read-topbar">
       <div class="rt-left">
-        <button class="rt-back" type="button" @click="closeWork" title="返回图书馆">←</button>
+        <button class="rt-back" type="button" @click="closeWork" title="返回图书馆"><icon name="arrowLeft" /></button>
         <span class="rt-title">{{ currentWork.title }}</span>
       </div>
       <div class="rt-right">
-        <button class="rt-pill copy" type="button" @click="copyLink" title="复制原文链接">🔗 复制链接</button>
+        <button class="rt-pill copy" type="button" @click="copyLink" title="复制原文链接"><icon name="link" /> 复制链接</button>
         <span v-if="detectPlatform(currentWork.original_url).platform !== 'other'" class="rt-pill src">{{ detectPlatform(currentWork.original_url).label }}</span>
-        <button class="rt-pill fav" :class="{ active: favorites.has(currentWork.id) }" type="button" @click="toggleFav(currentWork)">★ {{ favorites.has(currentWork.id) ? '已收藏' : '收藏' }}</button>
+        <button class="rt-pill fav" :class="{ active: favorites.has(currentWork.id) }" type="button" @click="toggleFav(currentWork)"><icon name="star" /> {{ favorites.has(currentWork.id) ? '已收藏' : '收藏' }}</button>
         <button class="rt-pill theme" type="button" @click="readerTheme = readerTheme === 'sepia' ? 'default' : 'sepia'" title="切换阅读主题">主题</button>
         <button class="rt-pill help" type="button" @click="showHelp = true" title="使用指南">帮助</button>
       </div>
@@ -802,7 +802,7 @@ onMounted(async () => {
     <div class="read-metahead">
       <h1 class="read-bigtitle">{{ currentWork.title }}</h1>
       <div class="read-chips">
-        <span class="rc">✍ {{ currentWork.author || '佚名' }}</span>
+        <span class="rc"><icon name="pen" /> {{ currentWork.author || '佚名' }}</span>
         <span v-if="detectPlatform(currentWork.original_url).platform !== 'other'" class="rc type">{{ detectPlatform(currentWork.original_url).label }}</span>
         <span v-if="currentWork.category" class="rc">{{ currentWork.category }}</span>
         <span class="rc">{{ workLinks(currentWork).length > 1 ? '共 ' + workLinks(currentWork).length + ' 章' : '单篇作品' }}</span>
@@ -851,9 +851,9 @@ onMounted(async () => {
       </template>
       <div v-else class="toc-about">
         <div class="toc-title">作品信息</div>
-        <div class="about-row">✍ {{ currentWork.author || '佚名' }}</div>
-        <div class="about-row" v-if="currentWork.category">📂 {{ currentWork.category }}</div>
-        <div class="about-row" v-if="detectPlatform(currentWork.original_url).platform !== 'other'">🔗 {{ detectPlatform(currentWork.original_url).label }}</div>
+        <div class="about-row"><icon name="pen" /> {{ currentWork.author || '佚名' }}</div>
+        <div class="about-row" v-if="currentWork.category"><icon name="folder" /> {{ currentWork.category }}</div>
+        <div class="about-row" v-if="detectPlatform(currentWork.original_url).platform !== 'other'"><icon name="link" /> {{ detectPlatform(currentWork.original_url).label }}</div>
         <div class="about-tags" v-if="currentWork.tags && currentWork.tags.length">
           <span v-for="t in currentWork.tags" :key="t">#{{ t }}</span>
         </div>
@@ -863,13 +863,13 @@ onMounted(async () => {
 
     <!-- 底部阅读条 -->
     <div class="read-bottombar" v-if="workLinks(currentWork).length > 1">
-      <button class="rb-btn" type="button" :disabled="activeChapter === 0" @click="prevChapter">← 上一章</button>
+      <button class="rb-btn" type="button" :disabled="activeChapter === 0" @click="prevChapter"><icon name="arrowLeft" /> 上一章</button>
       <span class="rb-count">第 {{ activeChapter + 1 }} / {{ workLinks(currentWork).length }} 章</span>
-      <button class="rb-btn primary" type="button" :disabled="activeChapter === workLinks(currentWork).length - 1" @click="nextChapter">下一章 →</button>
+      <button class="rb-btn primary" type="button" :disabled="activeChapter === workLinks(currentWork).length - 1" @click="nextChapter">下一章 <icon name="arrowRight" /></button>
       <div class="rb-set">
         <button class="rb-icon" type="button" @click="changeFont(-1)" title="缩小字号">A−</button>
         <button class="rb-icon" type="button" @click="changeFont(1)" title="放大字号">A＋</button>
-        <button class="rb-icon" type="button" @click="goChapterList" title="目录">≡</button>
+        <button class="rb-icon" type="button" @click="goChapterList" title="目录"><icon name="menu" /></button>
       </div>
     </div>
     <div class="read-bottombar single" v-else>
@@ -901,7 +901,7 @@ onMounted(async () => {
         <option value="">全部分类</option>
         <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
       </select>
-      <button v-if="isLoggedIn" class="fav-toggle" :class="{ active: showFavOnly }" type="button" @click="showFavOnly = !showFavOnly">★ 我的收藏</button>
+      <button v-if="isLoggedIn" class="fav-toggle" :class="{ active: showFavOnly }" type="button" @click="showFavOnly = !showFavOnly"><icon name="star" /> 我的收藏</button>
     </div>
 
     <div class="filterbar">
@@ -943,7 +943,7 @@ onMounted(async () => {
           </div>
         </template>
         <template v-else>
-          <button class="fav-btn" :class="{ active: favorites.has(w.id) }" type="button" :title="favorites.has(w.id) ? '取消收藏' : '收藏'" @click="toggleFav(w)">★</button>
+          <button class="fav-btn" :class="{ active: favorites.has(w.id) }" type="button" :title="favorites.has(w.id) ? '取消收藏' : '收藏'" @click="toggleFav(w)"><icon name="star" /></button>
           <div class="c-body">
             <div class="c-title">{{ w.title }}</div>
             <span v-if="detectPlatform(w.original_url).platform !== 'other'" class="badge plat">{{ detectPlatform(w.original_url).label }}</span>
@@ -951,7 +951,7 @@ onMounted(async () => {
             <div v-if="w.summary" class="c-sum">{{ w.summary }}</div>
             <div class="c-tags"><span v-for="t in (w.tags || [])" :key="t">#{{ t }}</span></div>
             <div class="card-actions">
-              <button class="link-btn ghost" type="button" @click="openWork(w)">详情 →</button>
+              <button class="link-btn ghost" type="button" @click="openWork(w)">详情 <icon name="arrowRight" /></button>
               <template v-if="hasMulti(w)">
                 <button class="link-btn ghost" type="button" @click="toggleExpand(w.id)">
                   {{ expanded[w.id] ? '收起' : `展开 ${workLinks(w).length} 章` }}
@@ -987,7 +987,7 @@ onMounted(async () => {
     <button v-if="visibleWorks.length < displayWorks.length" class="loadmore" type="button" @click="loadMore">加载更多 ↓</button>
 
     <div v-if="!displayWorks.length" class="empty">
-      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="#D8C7E8" stroke-width="1.5">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="var(--accent)" stroke-width="1.5">
         <rect x="10" y="8" width="28" height="32" rx="3" />
         <path d="M16 16h16M16 22h16M16 28h10" />
       </svg>
@@ -1099,7 +1099,7 @@ onMounted(async () => {
         <button :class="{ active: authMode === 'register' }" type="button" @click="switchAuthMode('register')">注册</button>
       </div>
       <div class="auth-tabs" v-else>
-        <button class="active" type="button" @click="switchAuthMode('login')">← 返回登录</button>
+        <button class="active" type="button" @click="switchAuthMode('login')"><icon name="arrowLeft" /> 返回登录</button>
       </div>
 
       <input v-model="authEmail" placeholder="邮箱" :disabled="authStep === 'code'" />
@@ -1166,19 +1166,19 @@ onMounted(async () => {
   <!-- ============ 移动端底部导航 ============ -->
   <nav class="mobile-nav" :class="{ 'nav-hidden': currentWork }">
     <button :class="{ active: currentWork || tab === 'browse' }" type="button" @click="currentWork ? closeWork() : (tab = 'browse')">
-      <span class="mi">🏠</span>首页
+      <span class="mi"><icon name="home" /></span>首页
     </button>
     <button :class="{ active: tab === 'submit' }" type="button" @click="tab = 'submit'">
-      <span class="mi">➕</span>投稿
+      <span class="mi"><icon name="add" /></span>投稿
     </button>
     <button :class="{ active: tab === 'batch' }" type="button" @click="tab = 'batch'">
-      <span class="mi">📥</span>批量
+      <span class="mi"><icon name="batch" /></span>批量
     </button>
     <button :class="{ active: showFavOnly }" type="button" @click="isLoggedIn ? (showFavOnly = !showFavOnly) : (showAuth = true)">
-      <span class="mi">⭐</span>收藏
+      <span class="mi"><icon name="star" /></span>收藏
     </button>
     <button :class="{ active: isLoggedIn }" type="button" @click="isLoggedIn ? null : (showAuth = true)">
-      <span class="mi">{{ isLoggedIn ? '👤' : '🔑' }}</span>{{ isLoggedIn ? '我的' : '登录' }}
+      <span class="mi"><icon :name="isLoggedIn ? 'user' : 'key'" /></span>{{ isLoggedIn ? '我的' : '登录' }}
     </button>
   </nav>
 
@@ -1187,7 +1187,7 @@ onMounted(async () => {
     <div class="help-modal">
       <div class="help-head">
         <span>使用指南</span>
-        <button class="help-close" type="button" @click="showHelp = false">✕</button>
+        <button class="help-close" type="button" @click="showHelp = false"><icon name="close" /></button>
       </div>
       <div class="help-body">
         <h2>kh-library 使用指南</h2>
@@ -1199,7 +1199,7 @@ onMounted(async () => {
         <h3>二、怎么找文</h3>
         <ul>
           <li><strong>按标签筛选</strong>：顶部一排标签，点一下只看这类；点「全部」取消筛选。</li>
-          <li><strong>按收藏筛选</strong>：登录后会出现「★ 我的收藏」，点一下只看你收藏过的。</li>
+          <li><strong>按收藏筛选</strong>：登录后会出现「我的收藏」，点一下只看你收藏过的。</li>
           <li><strong>悬停预览</strong>：鼠标移到卡片上，会浮出简介前两句和标签，不用点进去也能快速判断。</li>
         </ul>
 
@@ -1207,10 +1207,10 @@ onMounted(async () => {
         <p>点任意卡片 → 进入<strong>阅读页</strong>。阅读页上半部分是作品信息；关键按钮 <strong>「前往原站阅读 ↗」</strong> 在新标签页打开这篇文的原站链接，正文在那边看。多章节作品右侧会列出章节目录，当前章高亮，点任意章直接跳原站对应章节。</p>
 
         <h3>四、复制链接（分享）</h3>
-        <p>阅读页顶栏有 <strong>「🔗 复制链接」</strong> 按钮，点一下复制的是<strong>这篇文的原站链接</strong>（和「前往原站阅读」点出去的是同一个）。粘到微信 / QQ / 微博，对方点开就是原文。复制成功右下角会弹「原文链接已复制 ✓」。</p>
+        <p>阅读页顶栏有 <strong>「复制链接」</strong> 按钮，点一下复制的是<strong>这篇文的原站链接</strong>（和「前往原站阅读」点出去的是同一个）。粘到微信 / QQ / 微博，对方点开就是原文。复制成功右下角会弹「原文链接已复制 ✓」。</p>
 
         <h3>五、收藏</h3>
-        <p>卡片右下角和阅读页顶栏都有 <strong>★</strong>，点一下收藏、再点取消。登录后可用「★ 我的收藏」把列表筛成只显示收藏过的篇目。收藏数据跟着账号，换设备登录仍在。</p>
+        <p>卡片右下角和阅读页顶栏都有收藏按钮，点一下收藏、再点取消。登录后可用「我的收藏」把列表筛成只显示收藏过的篇目。收藏数据跟着账号，换设备登录仍在。</p>
 
         <h3>六、主题与护眼</h3>
         <ul>
@@ -1244,7 +1244,7 @@ onMounted(async () => {
     <div class="help-modal">
       <div class="help-head">
         <span>反馈</span>
-        <button class="help-close" type="button" @click="showFeedback = false">✕</button>
+        <button class="help-close" type="button" @click="showFeedback = false"><icon name="close" /></button>
       </div>
       <div class="help-body fb-body">
         <p>bug 修改和使用反馈，请联系：</p>
