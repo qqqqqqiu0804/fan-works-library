@@ -289,6 +289,27 @@ form textarea { min-height: 72px; resize: vertical; }
 .pi-warn { color: var(--danger); font-size: 11px; font-weight: 500; margin-left: 6px; }
 .pi-warn:not(:first-child) { display: block; margin-top: 4px; }
 
+/* 批量导入优化：引导 / 样例 / 汇总 / 进度 */
+.batch-guide { margin-bottom: 12px; }
+.batch-guide-actions { display: inline-flex; gap: 8px; margin-top: 8px; }
+.batch-sample { margin-top: 10px; padding: 12px 14px; background: var(--glass); -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px); border: 1px solid var(--glass-border); border-radius: 12px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3); }
+.batch-sample pre { margin: 0 0 10px; white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6; color: var(--text-sub); }
+.batch-summary { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.batch-error-actions { margin-top: 8px; }
+.batch-progress { margin-top: 14px; }
+.bar-track { height: 8px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--accent-fill); border-radius: 999px; transition: width .2s ease; }
+.batch-result { margin-top: 14px; padding: 14px 16px; background: var(--glass); -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px); border: 1px solid var(--glass-border); border-radius: 12px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3); }
+.batch-result .msg { margin: 2px 0; }
+.batch-result .msg.ok { color: var(--success); }
+.batch-result .msg.err { color: var(--danger); }
+.fail-list { margin: 8px 0; max-height: 180px; overflow: auto; }
+.fail-item { font-size: 12px; color: var(--danger); padding: 4px 0; border-bottom: 1px solid var(--border); }
+.batch-result-actions { display: flex; gap: 8px; margin-top: 10px; }
+.batch-result-actions .submit-btn.small { flex: 1; }
+.preview-item.pi-error { border-color: var(--danger-border); }
+.preview-item.pi-warn { border-color: var(--border-strong); }
+
 /* 登录 / 用户 */
 .login-btn {
   margin-left: auto; border: 1px solid var(--accent); color: var(--accent);

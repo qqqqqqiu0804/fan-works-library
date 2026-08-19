@@ -553,7 +553,14 @@ const batchText = ref('')
 const batchPreview = ref([])
 const batchCategory = ref('')
 const batchTags = ref('')
-const batchMsg = ref('')
+const batchMsg = ref('')           // 仅用于边界小提示（空输入 / 解析 0 条 / 无有效链接）
+const batchState = ref('idle')     // idle | preview | submitting | done
+const batchSummary = ref({ valid: 0, warn: 0, error: 0 })
+const batchProgress = ref({ current: 0, total: 0, name: '' })
+const batchSubmitting = ref(false)
+const batchResult = ref({ success: 0, skip: 0, fail: 0, failList: [] })
+const showSample = ref(false)
+const batchValidCount = computed(() => batchPreview.value.filter((it) => it.links.length && !it.dup).length)
 
 // 微博链接提取：优先认完整 URL，其次 16 位详情 ID，短数字（如 20133）判无效。
 // 真实详情 ID 是 16 位数字（或 base62 短码）；合集原文里的序号不是 ID，不能拿来拼链接。
@@ -680,34 +687,123 @@ function parseBatch(text) {
     .filter((it) => it.title) // 保留标题，链接无效也显示出来提示用户
 }
 
+// 样例与模板文本（引导区用）
+const SAMPLE_TEXT = `《星河彼端》https://m.weibo.cn/detail/1234567890123456
+《晚风轻语》https://weibo.com/abc/defghijklmn
+【新网h系列】
+1.0 29939：https://t.cn/AbC123
+《示例短文》20133`
+
+const TEMPLATE_TEXT = `把你的微博合集文本粘到这（删掉示例即可）。格式：
+1)《标题》 真实weibo链接
+2)【系列标题】
+   1.0 29939：http://t.cn/xxxxx
+注意：只有 16 位详情ID会被还原成链接；像 29939 这种短数字是序号，会被判无效。
+
+《作品标题》https://m.weibo.cn/detail/1234567890123456
+《另一篇》https://weibo.com/xxx/yyyyyyyyyyy`
+
 function doParse() {
-  batchMsg.value = ''
-  const items = parseBatch(batchText.value)
-  batchPreview.value = items
-  const valid = items.filter((it) => it.links.length)
-  const bad = items.filter((it) => !it.links.length)
-  if (!items.length) {
-    batchMsg.value = '没解析到任何作品，检查下格式（需要《标题》和真实链接 / 16 位 ID）'
-  } else if (bad.length) {
-    batchMsg.value = `解析到 ${items.length} 篇：${valid.length} 篇有有效链接，${bad.length} 篇只有无效数字（已标红）。确认提交时只会提交有有效链接的，无效篇请补真实 weibo 链接。`
-  } else {
-    batchMsg.value = `解析到 ${items.length} 篇，全部有效，确认无误后点「确认提交」`
+  if (!batchText.value.trim()) {
+    batchMsg.value = '先粘点东西进来呀（或点「看样例」填一份）'
+    return
   }
+  const items = parseBatch(batchText.value)
+  // 批次内重复检测（按首链接），标记 dup，提交时跳过并计入「重复」
+  const seen = new Set()
+  for (const it of items) {
+    it.dup = false
+    if (it.links.length) {
+      const key = it.links[0]
+      if (seen.has(key)) it.dup = true
+      else seen.add(key)
+    }
+  }
+  batchPreview.value = items
+  batchSummary.value = {
+    valid: items.filter((it) => it.links.length && !it.dup).length,
+    warn: items.filter((it) => it.dup).length,
+    error: items.filter((it) => !it.links.length).length
+  }
+  if (!items.length) {
+    batchMsg.value = '没解析到任何作品，检查下格式（需要《标题》和真实链接 / 16 位 ID）。点「看样例」对照一下。'
+    batchState.value = 'idle'
+    return
+  }
+  batchMsg.value = ''
+  batchState.value = 'preview'
+}
+
+function downloadBlob(filename, content, mime) {
+  const blob = new Blob([content], { type: mime })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+function toCSV(rows) {
+  return rows
+    .map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+}
+
+function downloadTemplate() {
+  downloadBlob('kh批量导入模板.txt', TEMPLATE_TEXT, 'text/plain;charset=utf-8')
+}
+
+function exportErrors() {
+  const rows = [['序号', '标题', '错误类型', '说明']]
+  batchPreview.value.forEach((it, i) => {
+    if (!it.links.length) {
+      rows.push([i + 1, it.title, '无有效链接', it.invalid.length ? `无效ID: ${it.invalid.join(',')}` : '缺少真实weibo链接'])
+    }
+  })
+  downloadBlob('批量导入错误行.csv', '﻿' + toCSV(rows), 'text/csv;charset=utf-8')
+}
+
+function exportFails() {
+  const rows = [['标题', '错误']]
+  batchResult.value.failList.forEach((f) => rows.push([f.title, f.error]))
+  downloadBlob('批量导入失败明细.csv', '﻿' + toCSV(rows), 'text/csv;charset=utf-8')
+}
+
+function resetBatch() {
+  batchState.value = 'idle'
+  batchPreview.value = []
+  batchText.value = ''
+  batchSummary.value = { valid: 0, warn: 0, error: 0 }
+  batchProgress.value = { current: 0, total: 0, name: '' }
+  batchResult.value = { success: 0, skip: 0, fail: 0, failList: [] }
+  batchMsg.value = ''
+  batchSubmitting.value = false
 }
 
 async function submitBatch() {
-  const items = batchPreview.value.filter((it) => it.links.length)
-  if (!items.length) {
-    batchMsg.value = '没有有效链接可提交，请给每篇补上真实 weibo 链接（或 16 位详情 ID）'
+  if (batchSubmitting.value) return
+  const toInsert = batchPreview.value.filter((it) => it.links.length && !it.dup)
+  const dupCount = batchPreview.value.filter((it) => it.links.length && it.dup).length
+  if (!toInsert.length) {
+    batchMsg.value = '没有可提交的有效链接（或全是重复），请补真实 weibo 链接后重试'
     return
   }
   const commonTags = batchTags.value
     .split(/[,，\s]+/)
     .map((s) => s.trim())
     .filter(Boolean)
-  batchMsg.value = `提交中… 0/${items.length}`
-  let ok = 0
-  for (const it of items) {
+  batchSubmitting.value = true
+  batchState.value = 'submitting'
+  batchProgress.value = { current: 0, total: toInsert.length, name: '' }
+  let success = 0
+  let fail = 0
+  const failList = []
+  for (const it of toInsert) {
+    batchProgress.value.name = it.title
+    batchProgress.value.current++
     try {
       await addWork({
         title: it.title,
@@ -716,16 +812,15 @@ async function submitBatch() {
         category: batchCategory.value || '同人文',
         tags: commonTags
       })
-      ok++
-      batchMsg.value = `提交中… ${ok}/${items.length}`
+      success++
     } catch (e) {
-      batchMsg.value = `第 ${ok + 1} 篇「${it.title}」失败：${e.message}`
-      return
+      fail++
+      failList.push({ title: it.title, error: e?.message || String(e) })
     }
   }
-  batchMsg.value = `✅ 成功提交 ${ok}/${items.length} 篇`
-  batchPreview.value = []
-  batchText.value = ''
+  batchResult.value = { success, skip: dupCount, fail, failList }
+  batchSubmitting.value = false
+  batchState.value = 'done'
   await loadFilters()
   await load()
 }
@@ -1051,13 +1146,24 @@ onMounted(async () => {
 
   <!-- ============ 批量导入 ============ -->
   <section v-else>
-    <p class="hint">
-      把微博合集文本整段粘进来，点「解析预览」。支持两种手机复制格式：
-      <br/>① <code>《标题》 真实weibo链接</code>（程序按《标题》分段）；
-      <br/>② <code>【系列标题】</code> + <code>1.0 29939：http://t.cn/xxxxx</code>（链接也可能在下一行，程序按版本自动拆成条目）。
-      <br/>认得到完整链接就直接用（<code>weibo.com/uid/mid</code> / <code>m.weibo.cn/detail/xxx</code> / <code>t.cn/xxx</code> 均可）；
-      只有 <b>16 位详情 ID</b> 才会被还原成 <code>https://m.weibo.cn/detail/ID</code>。像 <code>20133 / 29939</code> 这种短数字是合集序号，会被判<b>无效并标红</b>，不会生成死链。
-    </p>
+    <!-- ① 导入入口与引导区 -->
+    <div class="batch-guide">
+      <p class="hint">
+        把多篇作品一次塞进来。先按格式粘好文本，点「解析预览」看校验结果，确认无误再「确认提交」。
+        支持两种手机复制格式：① <code>《标题》 真实weibo链接</code>；② <code>【系列标题】</code> + <code>1.0 29939：http://t.cn/xxxxx</code>。
+        只有 <b>16 位详情 ID</b> 会被还原成链接，短数字（如 29939）是序号会判<b>无效</b>。
+      </p>
+      <div class="batch-guide-actions">
+        <button class="link-btn" type="button" @click="downloadTemplate">下载模板</button>
+        <button class="link-btn" type="button" @click="showSample = !showSample">看样例</button>
+      </div>
+      <div v-if="showSample" class="batch-sample">
+        <pre>{{ SAMPLE_TEXT }}</pre>
+        <button class="link-btn ghost" type="button" @click="batchText = SAMPLE_TEXT; showSample = false">填入样例</button>
+      </div>
+    </div>
+
+    <!-- ② 输入区 -->
     <div class="field">
       <label>合集文本</label>
       <textarea v-model="batchText" placeholder="粘贴你的网h系列导航文本…" style="min-height:160px"></textarea>
@@ -1067,28 +1173,63 @@ onMounted(async () => {
       <input v-model="batchTags" placeholder="统一标签（空格分隔，可空）" />
     </div>
     <div class="batch-actions">
-      <button class="submit-btn small" type="button" @click="doParse">解析预览</button>
+      <button class="submit-btn small" type="button" @click="doParse" :disabled="batchSubmitting || !batchText.trim()">解析预览</button>
       <button
         class="submit-btn small primary"
         type="button"
-        :disabled="!batchPreview.filter(it => it.links.length).length"
+        :disabled="batchSubmitting || !batchValidCount"
         @click="submitBatch"
-      >确认提交 {{ batchPreview.filter(it => it.links.length).length }} 篇</button>
+      >确认提交 {{ batchValidCount }} 篇</button>
     </div>
 
-    <div v-if="batchPreview.length" class="preview">
-      <div v-for="(it, i) in batchPreview" :key="i" class="preview-item">
+    <!-- ④ 解析校验结果区 + ⑤ 错误处理区 -->
+    <div v-if="batchState === 'preview' || batchState === 'submitting'" class="preview">
+      <div class="batch-summary">
+        <span class="badge ok">有效 {{ batchSummary.valid }}</span>
+        <span v-if="batchSummary.warn" class="badge">重复 {{ batchSummary.warn }}</span>
+        <span v-if="batchSummary.error" class="badge err">错误 {{ batchSummary.error }}</span>
+      </div>
+      <div
+        v-for="(it, i) in batchPreview"
+        :key="i"
+        class="preview-item"
+        :class="{ 'pi-error': !it.links.length, 'pi-warn': it.dup }"
+      >
         <div class="pi-title">《{{ it.title }}》· {{ it.links.length }} 章
+          <span v-if="!it.links.length" class="badge err">无有效链接</span>
+          <span v-else-if="it.dup" class="badge">疑似重复</span>
+          <span v-else class="badge ok">可导入</span>
           <span v-if="it.invalid.length" class="pi-warn">⚠ 无效ID：{{ it.invalid.join('、') }}</span>
         </div>
         <div class="pi-links">
           <a v-for="(l, j) in it.links" :key="j" :href="l" target="_blank" rel="noopener">{{ l }}</a>
         </div>
-        <div v-if="!it.links.length" class="pi-warn">无有效链接，需补真实 weibo 链接</div>
+      </div>
+      <div v-if="batchSummary.error" class="batch-error-actions">
+        <button class="link-btn ghost" type="button" @click="exportErrors">导出错误行（CSV）</button>
       </div>
     </div>
 
-    <p class="msg">{{ batchMsg }}</p>
+    <!-- ⑥ 进度与汇总区 -->
+    <div v-if="batchState === 'submitting'" class="batch-progress">
+      <div class="bar-track"><div class="bar-fill" :style="{ width: (batchProgress.total ? Math.round(batchProgress.current / batchProgress.total * 100) : 0) + '%' }"></div></div>
+      <p class="msg">导入中 {{ batchProgress.current }}/{{ batchProgress.total }}：{{ batchProgress.name }}</p>
+    </div>
+
+    <div v-if="batchState === 'done'" class="batch-result">
+      <p class="msg ok">成功 {{ batchResult.success }} 篇</p>
+      <p v-if="batchResult.skip" class="msg">跳过重复 {{ batchResult.skip }} 篇</p>
+      <p v-if="batchResult.fail" class="msg err">失败 {{ batchResult.fail }} 篇</p>
+      <div v-if="batchResult.failList.length" class="fail-list">
+        <div v-for="(f, i) in batchResult.failList" :key="i" class="fail-item">《{{ f.title }}》：{{ f.error }}</div>
+      </div>
+      <div class="batch-result-actions">
+        <button v-if="batchResult.failList.length" class="link-btn ghost" type="button" @click="exportFails">导出失败明细</button>
+        <button class="submit-btn small primary" type="button" @click="resetBatch">再传一批</button>
+      </div>
+    </div>
+
+    <p v-if="batchMsg" class="msg">{{ batchMsg }}</p>
   </section>
 
   <!-- ============ 登录弹窗 ============ -->
