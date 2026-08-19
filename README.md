@@ -44,7 +44,13 @@ npm run dev
 详细步骤见 [`cloudbase/setup.md`](cloudbase/setup.md)，要点：
 
 1. 打开 https://console.cloud.tencent.com/tcb 新建环境，复制 **环境 ID**（形如 `kh-library-xxxxxx`）。
-2. 数据库 → 依次执行 `cloudbase/migrations/` 下的 SQL：`20260817080636_create_works.sql`（建 `works` 表）→ `20260817192100_auth_roles_favorites.sql`（加 `author_uid` 列、建 `users`/`favorites` 表、定义 RLS 行级安全策略）。数据权限完全由这些 migration 里的 RLS policy 控制，配套可读配置见 `cloudbase/security-rules.json`。
+2. 数据库 → 依次执行 `cloudbase/migrations/` 下的 SQL：
+   - `20260817080636_create_works.sql`：建 `works` 表；
+   - `20260817192100_auth_roles_favorites.sql`：加 `author_uid` 列、建 `users`/`favorites` 表、定义 RLS 行级安全策略；
+   - `20260818000000_tighten_rls.sql`：收紧 RLS（作品写改删限作者或管理员、收藏限本人、注册强制 `role='user'`）；
+   - `20260818200000_sanitize_urls.sql`：建 `trg_sanitize_work_urls` 触发器，强制外链仅 `http(s)`，挡住存储型 XSS。
+   
+   数据权限完全由这些 migration 里的 RLS policy 控制，配套可读配置见 `cloudbase/security-rules.json`。
 3. 复制 `.env.example` 为 `.env`，填入：
    ```
    VITE_CLOUDBASE_ENV_ID=你的环境ID
@@ -75,7 +81,7 @@ npm run build        # 产物输出到 dist/
   - 章节目录，点章节**外跳原站**对应章节
   - 「🔗 复制链接」复制的是**原文链接**（与「前往原站阅读」同源），不是本站页面地址
   - 收藏、深浅色主题切换
-- **深浅色主题**：中性灰底 + 雾蓝强调色，偏好存 `localStorage`。
+- **深浅色主题**：中性灰底 + 雾蓝强调色；全站采用磨砂玻璃（frosted glass / glassmorphism）视觉语言——卡片、顶栏、搜索框、弹窗、移动端导航均为半透明 + `backdrop-filter` 模糊，偏好存 `localStorage`。
 
 ---
 
@@ -100,6 +106,12 @@ npm run build        # 产物输出到 dist/
 
 ## 最近更新
 
+- **前端设计审计与翻新**：用 Impeccable 设计语言对浏览页做 5 维审计（Accessibility / Implementation Integrity / Responsive / Performance / Theming），从 14/20 一路修到 20/20——修了对比度 token 拆分（雾蓝文字色 `#4F6F8B` 过关 AA）、emoji 图标全换线性 SVG、空状态描边、触控目标、字体 `@import` 阻塞、语义色 token 化、浏览器表面（selection / 滚动条 / focus-ring）主题化。
+- **视觉 redesign（毛玻璃）**：在保持 AA 对比度底线的前提下，全站改为磨砂玻璃风格——body 加雾蓝柔光背景，卡片 / 顶栏 / 搜索框 / 弹窗 / 移动端导航均为半透明 + `backdrop-filter` 模糊（卡片 22px、modal 30px），并加玻璃高光边与层次阴影。
+- **安全加固（6 项雷点收尾）**：
+  - 雷 2 收紧 RLS：建表 SQL 入库、作品写改删限作者或管理员、收藏限本人、管理员由 `users.role` 判定且注册时强制 `'user'`。
+  - 雷 5 / 雷 6 文档与代码对齐：`status` 死字段清理（保留 DB 列），安全模型与数据约定文档同步。
+  - 存储型 XSS 防护：数据库层 `trg_sanitize_work_urls` 触发器强制外链仅 `http(s)`，前端再叠协议白名单校验（anon key 公开，前端校验挡不住直插路径）。
 - 新增站内「使用指南」帮助弹层，首页 / 阅读页 / 页脚三入口统一唤起。
 - 新增页脚「反馈」浮层，联系方式 `baby515151@126.com`。
 - 移动端底部导航补齐「批量」「登录（我的）」等常驻入口，并优化阅读页窄屏排版与顶栏品牌隐藏逻辑。
