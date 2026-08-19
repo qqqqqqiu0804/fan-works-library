@@ -17,6 +17,7 @@
   --radius: 14px;
   --glass: rgba(255, 255, 255, .72);
   --glass-strong: rgba(255, 255, 255, .9);
+  --glass-border: rgba(255, 255, 255, .55);  /* 玻璃高光边：浅色模式 */
   /* 语义状态色（token 化，统一样式来源，避免硬编码散落 7 处） */
   --danger: #C0392B;      --danger-bg: #FDECEA;   --danger-border: #F5C6C0;
   --success: #2E7D32;     --success-bg: #E7F4EA;   --success-border: #C8E6C9;
@@ -41,6 +42,7 @@
   --shadow-sm: 0 4px 14px rgba(0, 0, 0, .3);
   --glass: rgba(26, 26, 26, .72);
   --glass-strong: rgba(26, 26, 26, .92);
+  --glass-border: rgba(255, 255, 255, .08);  /* 玻璃高光边：深色模式 */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -56,7 +58,12 @@ input:focus-visible, textarea:focus-visible { outline: none; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 body {
   font-family: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: var(--bg);
+  background:
+    radial-gradient(1100px 620px at 8% -8%, rgba(91, 124, 153, .14), transparent 60%),
+    radial-gradient(900px 520px at 100% 4%, rgba(127, 168, 201, .12), transparent 55%),
+    radial-gradient(760px 640px at 86% 102%, rgba(170, 195, 215, .12), transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
@@ -158,7 +165,9 @@ header {
 /* ===== 作品网格 ===== */
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .card {
-  background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--glass);
+  -webkit-backdrop-filter: saturate(180%) blur(12px); backdrop-filter: saturate(180%) blur(12px);
+  border-radius: var(--radius); border: 1px solid var(--glass-border);
   display: flex; flex-direction: column; position: relative;
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
   animation: fadeInUp .35s ease both;
@@ -204,7 +213,9 @@ header {
 /* 卡片悬停预览气泡 */
 .card-preview {
   position: absolute; left: calc(50% - 160px); width: 320px; top: 100%; margin-top: 10px; z-index: 50;
-  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: saturate(180%) blur(16px); backdrop-filter: saturate(180%) blur(16px);
+  border: 1px solid var(--glass-border); border-radius: var(--radius);
   box-shadow: var(--shadow); overflow: hidden;
   opacity: 0; visibility: hidden; transform: translateY(6px); pointer-events: none;
   transition: opacity .18s ease, transform .18s ease, visibility .18s;
@@ -263,7 +274,7 @@ form textarea { min-height: 72px; resize: vertical; }
 .submit-btn.small:disabled { opacity: .5; cursor: not-allowed; }
 .submit-btn.small.primary { background: var(--accent-fill); }
 .preview { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
-.preview-item { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; }
+.preview-item { background: var(--glass); -webkit-backdrop-filter: saturate(180%) blur(10px); backdrop-filter: saturate(180%) blur(10px); border: 1px solid var(--glass-border); border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; }
 .pi-title { font-size: 13px; font-weight: 500; margin-bottom: 5px; }
 .pi-links { display: flex; flex-direction: column; gap: 3px; }
 .pi-links a { font-size: 11px; color: var(--text); text-decoration: none; word-break: break-all; }
@@ -306,7 +317,10 @@ form textarea { min-height: 72px; resize: vertical; }
 /* 登录弹窗 */
 .auth-overlay { position: fixed; inset: 0; background: rgba(31,31,31,.4); display: flex; align-items: center; justify-content: center; z-index: 50; }
 .auth-modal {
-  width: 340px; max-width: 90vw; background: var(--surface); border-radius: 20px;
+  width: 340px; max-width: 90vw;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--glass-border); border-radius: 20px;
   padding: 24px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px;
 }
 .auth-tabs { display: flex; gap: 8px; }
@@ -406,7 +420,9 @@ form textarea { min-height: 72px; resize: vertical; }
 .toc-item:hover { color: var(--accent); }
 .toc-item.active { color: var(--accent); font-weight: 500; background: var(--accent-soft); }
 .toc-about {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px;
+  background: var(--glass);
+  -webkit-backdrop-filter: saturate(180%) blur(12px); backdrop-filter: saturate(180%) blur(12px);
+  border: 1px solid var(--glass-border); border-radius: 14px; padding: 14px 16px;
   display: flex; flex-direction: column; gap: 8px;
 }
 .about-row { font-size: 13px; color: var(--text-mut); }
@@ -553,7 +569,9 @@ form textarea { min-height: 72px; resize: vertical; }
   z-index: 300; padding: 24px;
 }
 .help-modal {
-  background: var(--surface); border: 1px solid var(--border);
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius); box-shadow: var(--shadow);
   width: 100%; max-width: 660px; max-height: 86vh;
   display: flex; flex-direction: column; overflow: hidden;
