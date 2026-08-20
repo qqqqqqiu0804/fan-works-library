@@ -18,7 +18,8 @@ const ICON_PATHS = {
   close: 'M6 6l12 12M18 6 6 18',
   arrowLeft: 'M15 5l-7 7 7 7',
   arrowRight: 'M9 5l7 7-7 7',
-  menu: 'M4 7h16M4 12h16M4 17h16'
+  menu: 'M4 7h16M4 12h16M4 17h16',
+  info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 11v4M12 8h.01'
 }
 
 const Icon = {

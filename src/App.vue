@@ -1085,6 +1085,7 @@ onMounted(async () => {
         <a href="#" @click.prevent="showHelp = true">帮助</a>
         <a href="#" @click.prevent="showFeedback = true">反馈</a>
         <a href="#" @click.prevent="tab = 'batch'">批量</a>
+        <a href="#" @click.prevent="tab = 'about'">关于</a>
       </div>
     </footer>
   </section>
@@ -1132,7 +1133,7 @@ onMounted(async () => {
   </section>
 
   <!-- ============ 批量导入 ============ -->
-  <section v-else>
+  <section v-else-if="tab === 'batch'">
     <!-- ① 导入入口与引导区 -->
     <div class="batch-guide">
       <p class="hint">
@@ -1218,6 +1219,34 @@ onMounted(async () => {
     <p v-if="batchMsg" class="msg">{{ batchMsg }}</p>
   </section>
 
+  <!-- ============ 关于本站 / 免责声明 ============ -->
+  <section v-else-if="tab === 'about'">
+    <div class="about-wrap">
+      <div class="about-card">
+        <h1 class="about-title">关于本站</h1>
+        <p class="about-lead">kh-library 是一个非官方的个人粉丝整理项目，主要收录并索引来自微博、LOFTER 等公开渠道的同人作品链接与时间线，旨在对互联网上公开可见的相关资料进行整理、归档与保存，方便读者检索与回看。</p>
+
+        <h2 class="legal-h">非官方声明</h2>
+        <p class="legal-p">本网站为非官方粉丝项目，与任何艺人、作者、经纪公司、所属机构及相关运营方不存在任何官方合作、授权、代理或隶属关系。网站名称、人物姓名、作品名称、商标及其他相关知识产权均归其相应权利人所有；本网站不主张对其享有所有权，也无意造成存在合作、授权或官方关联的误解。</p>
+
+        <h2 class="legal-h">资料来源</h2>
+        <p class="legal-p">本网站所整理的内容主要来源于互联网公开渠道，原则上仅对公开网络资料进行整理、汇总、索引及引用，并尽可能标注原始来源与相关链接。对于原始发布者已删除、隐藏或限制访问的内容，本网站不保证其链接能够长期有效。</p>
+
+        <h2 class="legal-h">二创版权与署名</h2>
+        <p class="legal-p">本网站可能收录、整理或展示部分粉丝创作的文字、图片、视频、剪辑及其他二次创作内容。除特别注明外，相关二创作品的著作权及其他合法权益归原作者或相关权利人所有；本网站仅出于非商业性的资料整理、展示及交流目的进行收录，并尽可能保留原作者署名与原始来源，不对相关二创作品主张权利，也不代表创作者本人立场。</p>
+
+        <h2 class="legal-h">外部链接</h2>
+        <p class="legal-p">本网站原则上不直接存储或提供相关音视频资源的下载服务。网站中出现的微博、LOFTER 等外部链接，均指向相应平台上的原始或公开页面，由相关平台用户或第三方自行发布和管理。本网站无法控制第三方页面的内容、可用性及后续变更，也不对外部网站内容承担责任。</p>
+
+        <h2 class="legal-h">侵权联系</h2>
+        <p class="legal-p">如相关作者或权利人不希望其作品出现在本网站，或认为网站收录内容存在版权、署名或其他权益问题，请联系网站维护者：<a class="legal-email" href="mailto:baby515151@126.com">baby515151@126.com</a>，并尽可能提供相关内容的具体位置、权属证明及处理要求。在收到有效通知并完成必要核实后，本网站将及时处理，包括删除相关内容、移除链接或更正署名与来源信息。</p>
+
+        <p class="about-foot">最后更新：2026 年 · © 2026 kh-library</p>
+        <button class="submit-btn small primary about-back" type="button" @click="tab = 'browse'">返回图书馆首页</button>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ 登录弹窗 ============ -->
   <div v-if="showAuth" class="auth-overlay" @click.self="closeAuth">
     <div class="auth-modal">
@@ -1300,6 +1329,9 @@ onMounted(async () => {
     </button>
     <button :class="{ active: tab === 'batch' }" type="button" @click="tab = 'batch'">
       <span class="mi"><icon name="batch" /></span>批量
+    </button>
+    <button :class="{ active: tab === 'about' }" type="button" @click="tab = 'about'">
+      <span class="mi"><icon name="info" /></span>关于
     </button>
     <button :class="{ active: showFavOnly }" type="button" @click="isLoggedIn ? (showFavOnly = !showFavOnly) : (showAuth = true)">
       <span class="mi"><icon name="star" /></span>收藏

@@ -253,6 +253,26 @@ header {
 .site-footer a { color: var(--accent); text-decoration: none; margin: 0 8px; }
 .site-footer a:hover { color: var(--accent-2); }
 
+/* ===== 关于本站 / 免责声明 ===== */
+.about-wrap { max-width: 760px; margin: 28px auto 0; padding: 0 4px; }
+.about-card {
+  background: var(--glass);
+  -webkit-backdrop-filter: saturate(180%) blur(22px); backdrop-filter: saturate(180%) blur(22px);
+  border: 1px solid var(--glass-border); border-radius: var(--radius);
+  padding: 30px 32px; box-shadow: var(--shadow);
+}
+.about-title { font-size: 24px; margin: 0 0 14px; color: var(--text); }
+.about-lead { font-size: 15px; line-height: 1.85; color: var(--text-sub); margin: 0 0 8px; }
+.legal-h {
+  font-size: 16px; margin: 24px 0 8px; color: var(--text);
+  border-left: 3px solid var(--accent); padding-left: 10px;
+}
+.legal-p { font-size: 14px; line-height: 1.9; color: var(--text-sub); margin: 0; }
+.legal-email { color: var(--accent); text-decoration: none; }
+.legal-email:hover { color: var(--accent-2); }
+.about-foot { margin: 26px 0 16px; font-size: 13px; color: var(--text-mut); }
+.about-back { margin-top: 4px; }
+
 /* ===== 表单 ===== */
 form .field { margin-bottom: 14px; }
 form label { display: block; font-size: 13px; margin-bottom: 6px; color: var(--text-sub); }
